@@ -14,7 +14,7 @@ fullproba_ftable(z1, z2)
   \item{z2}{ ~~Describe \code{z2} here~~ }
 }
 \details{
-  
+  ~~ If necessary, more details than the description above ~~
 }
 \value{
   ~Describe the value returned
@@ -36,6 +36,17 @@ fullproba_ftable(z1, z2)
 ##--	or do  help(data=index)  for the standard data sets.
 
 ## The function is currently defined as
+function(z1, z2){
+   m_out                <- matrix(NA,ncol(z1),ncol(z2))
+   row_name_vector      <- unique(c(row.names(z1),row.names(z2)))
+   m                    <- matrix(NA, length(row_name_vector), ncol(z1)+ncol(z2),dimnames=list(row_name_vector,list()))
+   m[row.names(z1),1:ncol(z1)] <- z1
+   m[row.names(z2),(ncol(z1)+1):(ncol(z1)+ncol(z2))] <- z2
+   for(i in 1:ncol(z1))
+      for(j in 1:ncol(z2))
+         m_out[i,j] <- mean(m[,i] * m[,j+ncol(z1)])
+   return(m_out)
+  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

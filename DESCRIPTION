@@ -1,11 +1,11 @@
 Package: SubtypeDiscovery
 Type: Package
 Title: What the package does (short line)
-Version: 1.0
+Version: 1.1
 Date: 2008-04-28
 Author: Fabrice Colas, Ingrid Meulenbelt, Jeanine Houwing-Duistermaat, Stephanie van Rooden, Martine Visser
 Maintainer: Fabrice Colas <fcolas@liacs.nl>
 Description: Selection of methods to characterize, compare and evaluate cluster models for medical research.
 License: BSD
 Depends: mclust
-Packaged: Mon Apr 28 18:15:06 2008; fcolas
+Packaged: Tue Apr 29 15:45:06 2008; fcolas

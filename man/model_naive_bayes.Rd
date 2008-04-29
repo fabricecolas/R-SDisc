@@ -16,7 +16,7 @@ model_naive_bayes(formula, trainset, testset, laplace = 1)
   \item{laplace}{ ~~Describe \code{laplace} here~~ }
 }
 \details{
-  
+  ~~ If necessary, more details than the description above ~~
 }
 \value{
   ~Describe the value returned
@@ -37,6 +37,10 @@ model_naive_bayes(formula, trainset, testset, laplace = 1)
 ##-- ==>  Define data, use random,
 ##--	or do  help(data=index)  for the standard data sets.
 
+## The function is currently defined as
+function(formula, trainset, testset, laplace = 1){
+   return(naiveBayes(class ~ . , data=trainset, laplace = 1))
+  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

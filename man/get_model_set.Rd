@@ -14,7 +14,7 @@ get_model_set(relativeBic, bbox_threshold = 5)
   \item{bbox_threshold}{ ~~Describe \code{bbox_threshold} here~~ }
 }
 \details{
-  
+  ~~ If necessary, more details than the description above ~~
 }
 \value{
   ~Describe the value returned
@@ -35,6 +35,17 @@ get_model_set(relativeBic, bbox_threshold = 5)
 ##-- ==>  Define data, use random,
 ##--	or do  help(data=index)  for the standard data sets.
 
+## The function is currently defined as
+function(relativeBic, bbox_threshold=5){
+   relativeBic <- list(bicTable=relativeBic, bbox = apply(abs(relativeBic) < bbox_threshold,2,which))
+   relativeBic$bbox <- relativeBic$bbox[which(lapply(relativeBic$bbox,length) >0)]
+   # DERIVE VERTICES TO COMPARE WITHIN THE 5\% BBOX OF THE BIC TABLE
+   relativeBic$best_models <- matrix(0,0,2,dimnames=list(list(),list("modelName","G")))
+   for(m in names(relativeBic$bbox))
+      for(g in relativeBic$bbox[[m]])
+         relativeBic$best_models <- rbind(relativeBic$best_models,c(m,row.names(relativeBic[["bicTable"]])[g]))
+   return(relativeBic[["best_models"]])
+  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

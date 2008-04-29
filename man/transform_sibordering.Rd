@@ -13,7 +13,7 @@ transform_sibordering(data)
   \item{data}{ ~~Describe \code{data} here~~ }
 }
 \details{
-  
+  ~~ If necessary, more details than the description above ~~
 }
 \value{
   ~Describe the value returned
@@ -34,6 +34,17 @@ transform_sibordering(data)
 ##-- ==>  Define data, use random,
 ##--	or do  help(data=index)  for the standard data sets.
 
+## The function is currently defined as
+function(data){
+   for(f in unique(data$family)){
+      fmembers <- sort(data[data$family == f,"member"])
+      if(!is.na(fmembers[1]) && !is.na(fmembers[2])){
+         data[data$family == f & data$member == fmembers[1],"member"] <- 1
+         data[data$family == f & data$member == fmembers[2],"member"] <- 2 
+      }
+   }
+   return(data[data$member <= 2,])
+  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

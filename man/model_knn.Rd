@@ -19,7 +19,7 @@ model_knn(formula, trainset, testset, k = 1, l = 0, prob = FALSE, use.all = TRUE
   \item{use.all}{ ~~Describe \code{use.all} here~~ }
 }
 \details{
-  
+  ~~ If necessary, more details than the description above ~~
 }
 \value{
   ~Describe the value returned
@@ -40,6 +40,10 @@ model_knn(formula, trainset, testset, k = 1, l = 0, prob = FALSE, use.all = TRUE
 ##-- ==>  Define data, use random,
 ##--	or do  help(data=index)  for the standard data sets.
 
+## The function is currently defined as
+function(formula, trainset, testset, k = 1, l = 0, prob = FALSE, use.all = TRUE){
+   return(knn(trainset[,-match("class",names(trainset))], testset[,-match("class",names(testset))] ,trainset[,"class"], k = k, l = l, prob = prob, use.all = use.all))
+  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

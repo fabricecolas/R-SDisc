@@ -14,7 +14,7 @@ predict_knn(model, testset)
   \item{testset}{ ~~Describe \code{testset} here~~ }
 }
 \details{
-  
+  ~~ If necessary, more details than the description above ~~
 }
 \value{
   ~Describe the value returned
@@ -35,6 +35,10 @@ predict_knn(model, testset)
 ##-- ==>  Define data, use random,
 ##--	or do  help(data=index)  for the standard data sets.
 
+## The function is currently defined as
+function(model, testset){
+   return(model)
+  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

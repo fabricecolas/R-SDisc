@@ -1,12 +1,12 @@
 \name{cluster_analysis}
 \alias{cluster_analysis}
 %- Also NEED an '\alias' for EACH other topic documented here.
-\title{Generic cluster analysis function}
+\title{ ~~function to do ... ~~ }
 \description{
-We define that function to carry a generic cluster analysis by means of some clustering algorithm. In our case, we only proceed to a cluster analysis by mixture modeling, see model\_based\_clustering for further details. In order to summary and characterize a cluster result, we may provide a list of functions as parameters in "stats\_fun", which will derive additional statistics on the clustered data.
+  ~~ A concise (1-5 lines) description of what the function does. ~~
 }
 \usage{
-cluster_analysis(data, filePrefix = filePrefix, G_set = 1:9, stats_fun = list(oddratios = function(data, class) {
+cluster_analysis(data, filePrefix = NULL, G_set = 1:9, modelNames = c("EII", "VII", "EEI", "VEI", "EVI", "VVI", "EEE", "EEV", "VEV", "VVV"), stats_fun = list(oddratios = function(data, class) {
     return(statistics_logodds(data, class))
 }))
 }
@@ -15,10 +15,11 @@ cluster_analysis(data, filePrefix = filePrefix, G_set = 1:9, stats_fun = list(od
   \item{data}{ ~~Describe \code{data} here~~ }
   \item{filePrefix}{ ~~Describe \code{filePrefix} here~~ }
   \item{G_set}{ ~~Describe \code{G_set} here~~ }
+  \item{modelNames}{ ~~Describe \code{modelNames} here~~ }
   \item{stats_fun}{ ~~Describe \code{stats_fun} here~~ }
 }
 \details{
-  
+  ~~ If necessary, more details than the description above ~~
 }
 \value{
   ~Describe the value returned
@@ -40,6 +41,21 @@ cluster_analysis(data, filePrefix = filePrefix, G_set = 1:9, stats_fun = list(od
 ##--	or do  help(data=index)  for the standard data sets.
 
 ## The function is currently defined as
+function(data,
+        filePrefix=NULL,
+        G_set=1:9,
+        modelNames=c("EII", "VII","EEI","VEI","EVI","VVI","EEE","EEV","VEV","VVV"),
+	stats_fun = list(       oddratios=function(data,class){return(statistics_logodds(data,class))}
+#				,gen_naive_bayes=function(data,class){return(evaluate_generalization(data,class,fun_classifier=list(model=model_naive_bayes,predict=predict_naive_bayes),K=5))}
+#				,gen_knn=function(data,class){return(evaluate_generalization(data,class,fun_classifier=list(model=model_knn,predict=predict_knn),K=5))}
+#				,gen_svm=function(data,class){return(evaluate_generalization(data,class,fun_classifier=list(model=model_svm,predict=predict_svm),K=5))}
+				)){
+	# 
+	# PROCEED TO MBC ANALYSIS ON THE TRANSFORMED DATA
+	# 
+	clustering <- model_based_clustering(data,filePrefix=filePrefix,stats_fun=stats_fun,G_set=G_set)	
+	return(clustering)
+  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

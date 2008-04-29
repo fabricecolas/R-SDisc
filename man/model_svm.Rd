@@ -17,7 +17,7 @@ model_svm(formula, trainset, testset, kernel = "linear", type = "C-classificatio
   \item{type}{ ~~Describe \code{type} here~~ }
 }
 \details{
-  
+  ~~ If necessary, more details than the description above ~~
 }
 \value{
   ~Describe the value returned
@@ -38,6 +38,10 @@ model_svm(formula, trainset, testset, kernel = "linear", type = "C-classificatio
 ##-- ==>  Define data, use random,
 ##--	or do  help(data=index)  for the standard data sets.
 
+## The function is currently defined as
+function(formula, trainset, testset, kernel="linear",type="C-classification"){
+   return(svm(class ~ . , data=trainset,kernel=kernel,type=type))
+  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

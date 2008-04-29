@@ -6,15 +6,15 @@
   ~~ A concise (1-5 lines) description of what the function does. ~~
 }
 \usage{
-get_coloring_scheme(data, canalysis_outcomes = parkinson_canalysis_outcomes)
+get_coloring_scheme(data, canalysis_variables = parkinson_canalysis_variables)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{data}{ ~~Describe \code{data} here~~ }
-  \item{canalysis_outcomes}{ ~~Describe \code{canalysis_outcomes} here~~ }
+  \item{canalysis_variables}{ ~~Describe \code{canalysis_variables} here~~ }
 }
 \details{
-  
+  ~~ If necessary, more details than the description above ~~
 }
 \value{
   ~Describe the value returned
@@ -35,6 +35,16 @@ get_coloring_scheme(data, canalysis_outcomes = parkinson_canalysis_outcomes)
 ##-- ==>  Define data, use random,
 ##--	or do  help(data=index)  for the standard data sets.
 
+## The function is currently defined as
+function(data, canalysis_variables = parkinson_canalysis_variables){
+   data <- data.matrix(data)
+   # MAKE A DENDROGRAM FROM THESE AVG PATTERN FOR THE DENDROGRAM ORDERING
+   dendro_patterns      <- hclust(dist(data))
+   # SELECT DIVERGING COLORS FROM RColorBrewer
+   cluster_colors       <- brewer.pal(nrow(data),"Set1")
+   # RETURN A DATA STRUCTURE WITH CLUSTERS RIGHTLY ORDERED AND THEIR ASSOCIATED COLOR
+   return(list(cluster_order=dendro_patterns$order,cluster_color=cluster_colors))
+  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

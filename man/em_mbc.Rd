@@ -15,7 +15,7 @@ em_mbc(data, modelName = "VVI", G = 5)
   \item{G}{ ~~Describe \code{G} here~~ }
 }
 \details{
-  
+  ~~ If necessary, more details than the description above ~~
 }
 \value{
   ~Describe the value returned
@@ -37,6 +37,21 @@ em_mbc(data, modelName = "VVI", G = 5)
 ##--	or do  help(data=index)  for the standard data sets.
 
 ## The function is currently defined as
+function(data, modelName="VVI", G=5) {
+   if(G >= 2){
+      mat          <- matrix(rnorm(G*nrow(data)),nrow(data),G)
+      # not very satisfying that at least one of the component is zero...
+      mat          <- mat-apply(mat,1,min)
+      mat          <- mat/apply(mat,1,sum)
+   }
+   else
+      mat          <- matrix(1,nrow(data),G)
+   #
+   msEst        <- mstep(modelName = modelName, data=data,z=mat)
+   # an initial model is then estimated and provided as starting point to the em-algorithm
+   em_model     <- em(modelName = msEst$modelName, data = data,parameters = msEst$parameters)
+   return(em_model)
+  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

@@ -14,7 +14,7 @@ retrieve_model(canalysis, query)
   \item{query}{ ~~Describe \code{query} here~~ }
 }
 \details{
-  
+  ~~ If necessary, more details than the description above ~~
 }
 \value{
   ~Describe the value returned
@@ -35,6 +35,20 @@ retrieve_model(canalysis, query)
 ##-- ==>  Define data, use random,
 ##--	or do  help(data=index)  for the standard data sets.
 
+## The function is currently defined as
+function(canalysis,query){
+   # init
+   params       <- list()
+   # retrieve the model corresponding to the query
+   mbc_params   <- strsplit(query,",")[[1]]
+   params       <- list(model=mbc_params[1],G=as.numeric(mbc_params[2]))
+   i            <- 1 
+   while(!(canalysis[["out"]][[i]]$G == params$G & canalysis[["out"]][[i]]$modelName == params$model & i <= length(canalysis[["out"]])))
+      i         <- i+1
+   params[["model"]]     <- canalysis[["out"]][[i]]
+   params[["labelling"]] <- map(params[["model"]]$z,warn=FALSE)
+   return(params)
+  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

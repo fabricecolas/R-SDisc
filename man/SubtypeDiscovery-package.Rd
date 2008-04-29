@@ -17,27 +17,24 @@ statistical tests measuring familial aggregation.
 \tabular{ll}{
 Package: \tab SubtypeDiscovery\cr
 Type: \tab Package\cr
-Version: \tab 1.0\cr
-Date: \tab 2008-04-28\cr
+Version: \tab 1.1\cr
+Date: \tab 2008-04-29\cr
 License: \tab BSD\cr
 }
-
-
+The entry-function is analysis which allows multiple parameters that specify the type of analysis to carry. 
 }
 \author{
-Fabrice Colas, Ingrid Meulenbelt, Jeanine Houwing-Duistermaat, Stephanie van Rooden, Martine Visser
-
-Responsable : Fabrice Colas <fcolas@liacs.nl>
+Fabrice Colas <fcolas at liacs.nl
 }
 \references{
-~~ Références bibliographiques ou autre références pour de l'information générale ~~
+\emph{Selected Methods for Characterization, Comparison and Evaluation of Cluster Models for Medical Research}, unpublished F. Colas et al.
+
+\emph{Stability of Clusters for Different Time Adjustments in Complex Disease Research}, under review for IEEE EMBC 2008, F. Colas et al.
 }
-~~ Eventuellement d'autres mots clés, un par ligne, issus du fichier ~~
-~~ KEYWORDS du répertoire documentation de R ~~
-\keyword{ clustering, subtype discovery, cross-comparison, visual-aid, table-chart, medical research, familial aggregation }
-%%\seealso{
-%~~ Liens valides vers d'autres pages de manuel, par exemple ~~
-%~~ \code{\link[<pkg>:<pkg>-package]{<pkg>}} ~~
-%}
+\keyword{ package }
+\seealso{
+\code{\link[<pkg>:<pkg>-package]{<pkg>}} 
+}
 \examples{
+exemples simples des fonctions les plus importantes 
 }

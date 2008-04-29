@@ -14,7 +14,7 @@ transform_MAX(data, model = NULL)
   \item{model}{ ~~Describe \code{model} here~~ }
 }
 \details{
-  
+  ~~ If necessary, more details than the description above ~~
 }
 \value{
   ~Describe the value returned
@@ -35,6 +35,10 @@ transform_MAX(data, model = NULL)
 ##-- ==>  Define data, use random,
 ##--	or do  help(data=index)  for the standard data sets.
 
+## The function is currently defined as
+function(data,model=NULL){
+	return(transform_ALL(data=data,model=model,type="max"))
+  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

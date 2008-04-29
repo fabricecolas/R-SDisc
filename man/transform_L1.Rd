@@ -13,7 +13,7 @@ transform_L1(data)
   \item{data}{ ~~Describe \code{data} here~~ }
 }
 \details{
-  
+  ~~ If necessary, more details than the description above ~~
 }
 \value{
   ~Describe the value returned
@@ -34,6 +34,12 @@ transform_L1(data)
 ##-- ==>  Define data, use random,
 ##--	or do  help(data=index)  for the standard data sets.
 
+## The function is currently defined as
+function(data){
+	data <- data/matrix(apply(data,2,sum,na.rm=TRUE),nrow(data),ncol(data),byrow=TRUE)
+	# TODO: UPDATE TYPE FIELD	
+	return(list(data=data,model=NULL,type="L1"))
+  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

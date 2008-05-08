@@ -31,26 +31,6 @@ stratified_cv(data, K = 10)
 }
 \seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
 \examples{
-##---- Should be DIRECTLY executable !! ----
-##-- ==>  Define data, use random,
-##--	or do  help(data=index)  for the standard data sets.
-
-## The function is currently defined as
-function(data,K=10){
-   indexes <- list()
-   G <- length(table(data$class))
-   g <- as.numeric(names(sort(table(data$class))[1]))
-   row_number <- nrow(data[data$class == g,])
-   out_cv <- stratified_cv_folds(row_number,K=K,g)
-   while(is.null(out_cv)){
-      K <- K-1
-      print(K)
-      out_cv <- stratified_cv_folds(row_number,K=K,g)
-   }
-   for(g in 1:G)
-      indexes[[g]] <- stratified_cv_folds(row_number,K,g)
-   return(list(indexes=indexes,K=K))
-  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

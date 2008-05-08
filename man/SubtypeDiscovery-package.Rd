@@ -3,38 +3,39 @@
 \alias{SubtypeDiscovery}
 \docType{package}
 \title{
-Selection of methods to characterize, compare and evaluate cluster models for medical research.
+What the package does (short line)
+~~ titre du package ~~
 }
 \description{
-In order to identify homogeneous clusters we construct visual-aids and
-table-charts that summary the key-characteristics of the different clusters for
-the different settings of the clustering algorithm. We also provide a strategy
-to further cross-compare the top cluster results. Finally, to evalute cluster
-results in medical research on sibling pairs, we especially report two
-statistical tests measuring familial aggregation. 
+More about what it does (maybe more than one line)
+~~ Description concise (1-5 lignes) du package ~~
 }
 \details{
 \tabular{ll}{
 Package: \tab SubtypeDiscovery\cr
 Type: \tab Package\cr
-Version: \tab 1.1\cr
-Date: \tab 2008-04-29\cr
-License: \tab BSD\cr
+Version: \tab 1.0\cr
+Date: \tab 2008-05-06\cr
+License: \tab What license is it under?\cr
 }
-The entry-function is analysis which allows multiple parameters that specify the type of analysis to carry. 
+~~ Une vue d'ensemble montrant comment utiliser le package, y compris ses ~~
+~~ fonctions les plus importantes ~~
 }
 \author{
-Fabrice Colas <fcolas at liacs.nl
+Who wrote it
+
+Responsable : Who to complain to <yourfault@somewhere.net>
+~~ L'auteur et/ou la personne responsable du package ~~
 }
 \references{
-\emph{Selected Methods for Characterization, Comparison and Evaluation of Cluster Models for Medical Research}, unpublished F. Colas et al.
-
-\emph{Stability of Clusters for Different Time Adjustments in Complex Disease Research}, under review for IEEE EMBC 2008, F. Colas et al.
+~~ Références bibliographiques ou autre références pour de l'information générale ~~
 }
+~~ Eventuellement d'autres mots clés, un par ligne, issus du fichier ~~
+~~ KEYWORDS du répertoire documentation de R ~~
 \keyword{ package }
 \seealso{
-\code{\link[<pkg>:<pkg>-package]{<pkg>}} 
+~~ Liens valides vers d'autres pages de manuel, par exemple ~~
+~~ \code{\link[<pkg>:<pkg>-package]{<pkg>}} ~~
 }
 \examples{
-exemples simples des fonctions les plus importantes 
 }

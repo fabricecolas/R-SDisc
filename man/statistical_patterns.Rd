@@ -31,17 +31,6 @@ statistical_patterns(data, fun_list = list(avg = mean, median = median))
 }
 \seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
 \examples{
-##---- Should be DIRECTLY executable !! ----
-##-- ==>  Define data, use random,
-##--	or do  help(data=index)  for the standard data sets.
-
-## The function is currently defined as
-function(data,fun_list=list(avg=mean,median=median)){
-        data_out <- list()
-        for(fun in names(fun_list))
-                data_out[[fun]] <- compute_pattern(data,fun=fun_list[[fun]])
-        return(data_out)
-  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

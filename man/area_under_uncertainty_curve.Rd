@@ -30,20 +30,6 @@ area_under_uncertainty_curve(class)
 }
 \seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
 \examples{
-##---- Should be DIRECTLY executable !! ----
-##-- ==>  Define data, use random,
-##--	or do  help(data=index)  for the standard data sets.
-
-## The function is currently defined as
-function(class){
-   # AREA UNDER THE UN-CERTAINTY CURVE FOR EACH TWO MODELS
-   auuc         <- mean(1-apply(class,1,max,na.rm=TRUE))
-   auuc_sd      <- sd(  1-apply(class,1,max,na.rm=TRUE))
-   out          <- matrix(NA,ncol(class),2,dimnames=list(1:ncol(class),c("AUUC","AUUC sdev")))
-   out[1,1]     <- auuc
-   out[1,2]     <- auuc_sd
-   return(list(auuc = auuc, sd = auuc_sd, out = out))
-  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

@@ -37,31 +37,6 @@ mclust2_bicaic(modelName, loglik, n, d, G, noise = FALSE, equalPro = FALSE, ...)
 }
 \seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
 \examples{
-##---- Should be DIRECTLY executable !! ----
-##-- ==>  Define data, use random,
-##--	or do  help(data=index)  for the standard data sets.
-
-## The function is currently defined as
-function (modelName, loglik, n, d, G, noise = FALSE, equalPro = FALSE,...)
-{
-   modelName    <- switch(EXPR = modelName, XII = "EII", XXI = "EEI",XXX = "EEE", modelName)
-   if (G == 0) {
-      if (!noise)
-      stop("undefined model")
-      nparams <- 1
-   }
-   else {
-         nparams <- nVarParams(modelName, d, G) + G * d
-      if (!equalPro)
-         nparams <- nparams + (G - 1)
-      if (noise)
-         nparams <- nparams + 2
-   }
-   #
-   # RETURN VECTOR WITH LOG BIC AND AIC SCORES
-   #
-   return(c(2 * loglik - nparams * logb(n), 2 * loglik - 2 * nparams))
-  }
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

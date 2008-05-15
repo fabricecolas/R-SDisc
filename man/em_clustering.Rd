@@ -16,7 +16,7 @@ em_clustering(data, G_set = 1:9, modelNames = c("EII", "VII", "EEI", "VEI", "EVI
   \item{rseed}{ ~~Describe \code{rseed} here~~ }
 }
 \details{
-  ~~ If necessary, more details than the description above ~~
+  
 }
 \value{
   ~Describe the value returned
@@ -25,8 +25,8 @@ em_clustering(data, G_set = 1:9, modelNames = c("EII", "VII", "EEI", "VEI", "EVI
   \item{comp2 }{Description of 'comp2'}
   ...
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
+\references{ }
+\author{ Fabrice Colas }
 \note{ ~~further notes~~ 
 
  ~Make other sections like Warning with \section{Warning }{....} ~

@@ -17,7 +17,7 @@ model_based_clustering(data, config, G_set, model_names = c("EII", "VII", "EEI",
   \item{clust_fun}{ ~~Describe \code{clust_fun} here~~ }
 }
 \details{
-  ~~ If necessary, more details than the description above ~~
+  
 }
 \value{
   ~Describe the value returned
@@ -26,8 +26,8 @@ model_based_clustering(data, config, G_set, model_names = c("EII", "VII", "EEI",
   \item{comp2 }{Description of 'comp2'}
   ...
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
+\references{ }
+\author{ Fabrice Colas }
 \note{ ~~further notes~~ 
 
  ~Make other sections like Warning with \section{Warning }{....} ~

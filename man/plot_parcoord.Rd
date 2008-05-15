@@ -18,7 +18,7 @@ plot_parcoord(pattern, T_s, color_sel, lty = "full", lwd = 3, title_prefix = NUL
   \item{title_prefix}{ ~~Describe \code{title_prefix} here~~ }
 }
 \details{
-  ~~ If necessary, more details than the description above ~~
+  
 }
 \value{
   ~Describe the value returned
@@ -27,8 +27,8 @@ plot_parcoord(pattern, T_s, color_sel, lty = "full", lwd = 3, title_prefix = NUL
   \item{comp2 }{Description of 'comp2'}
   ...
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
+\references{ }
+\author{ Fabrice Colas }
 \note{ ~~further notes~~ 
 
  ~Make other sections like Warning with \section{Warning }{....} ~

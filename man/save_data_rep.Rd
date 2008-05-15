@@ -13,7 +13,7 @@ save_data_rep(version = 1.3)
   \item{version}{ ~~Describe \code{version} here~~ }
 }
 \details{
-  ~~ If necessary, more details than the description above ~~
+  
 }
 \value{
   ~Describe the value returned
@@ -22,8 +22,8 @@ save_data_rep(version = 1.3)
   \item{comp2 }{Description of 'comp2'}
   ...
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
+\references{ }
+\author{ Fabrice Colas }
 \note{ ~~further notes~~ 
 
  ~Make other sections like Warning with \section{Warning }{....} ~

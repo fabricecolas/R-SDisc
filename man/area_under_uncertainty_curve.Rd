@@ -1,37 +1,32 @@
 \name{area_under_uncertainty_curve}
 \alias{area_under_uncertainty_curve}
 %- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
+\title{Area under the quantile-curve of the clustering uncertainty}
 \description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
+Each observation belong to a cluster with a given certainty. And we can refer
+as the clustering uncertainty the reciprocal, i.e.  1 minus the cluster
+likelihood membership. Then, the function (area_under_uncertainty_curve())
+returns the mean value of the clustering uncertainties. 
+
+We can understand this quantity as the average level of uncertainty to cluster
+the observation for the current model.  
 }
 \usage{
 area_under_uncertainty_curve(class)
 }
-%- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{class}{ ~~Describe \code{class} here~~ }
+  \item{class}{ A data matrix of the cluster membership likelihood.}
 }
 \details{
-  ~~ If necessary, more details than the description above ~~
+  
 }
 \value{
-  ~Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
+  \item{auuc}{ Average value of the cluster uncertainty,}
+  \item{auuc_sd}{ Standard deviation of the cluster uncertainty,}
+  \item{out}{ 2-by-2 matrix defining the output-print of the table.}
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
-\note{ ~~further notes~~ 
-
- ~Make other sections like Warning with \section{Warning }{....} ~
-}
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
-}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
+\references{ }
+\author{ Fabrice Colas }
+\note{ }
+\seealso{  \code{\link{get_stats_fun}, \link{evaluate_generalization},\link{statistics_logodds}}}
+\examples{ }

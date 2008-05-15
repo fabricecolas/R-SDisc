@@ -14,7 +14,7 @@ set_calgo(calgo = "model_based_clustering", args = list(G_set = 1:9, model_names
   \item{args}{ ~~Describe \code{args} here~~ }
 }
 \details{
-  ~~ If necessary, more details than the description above ~~
+  
 }
 \value{
   ~Describe the value returned
@@ -23,8 +23,8 @@ set_calgo(calgo = "model_based_clustering", args = list(G_set = 1:9, model_names
   \item{comp2 }{Description of 'comp2'}
   ...
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
+\references{ }
+\author{ Fabrice Colas }
 \note{ ~~further notes~~ 
 
  ~Make other sections like Warning with \section{Warning }{....} ~

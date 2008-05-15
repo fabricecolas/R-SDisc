@@ -1,38 +1,33 @@
 \name{compute_plot_data}
 \alias{compute_plot_data}
 %- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
-\description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
-}
-\usage{
-compute_plot_data(data, fun = mean)
-}
+\title{ Compute plot-data patterns like average, median or quantiles}
+\description{ Given the function provided as parameter 'fun', it computes the
+patterns for each cluster. For instance, providing mean as parameter would give
+the average of each cluster, i.e. its center. 
+
+The function returns a matrix of dimension dxG, with d the number of variables
+in the data set and G the number of clusters. 
+
+Remark that \code{compute_plot_data()} does not restrict to the variables for
+the cluster analysis but to all of them and we treat the missing values by
+omitting them.  }
+\usage{ compute_plot_data(data, fun = mean) }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{data}{ ~~Describe \code{data} here~~ }
-  \item{fun}{ ~~Describe \code{fun} here~~ }
+  \item{data}{ A data matrix with a \code{class} column, referring to the cluster membership,}
+  \item{fun}{ A function like \code{mean, sd, median} or even
+      {function(x){return(quantile(x,probs=0.025,na.rm=TRUE))}} for the 2.5\%
+      quantile-pattern of the cluster.}
 }
-\details{
-  ~~ If necessary, more details than the description above ~~
-}
+\details{ }
 \value{
-  ~Describe the value returned
-  If it is a LIST, use
   \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
-\note{ ~~further notes~~ 
-
- ~Make other sections like Warning with \section{Warning }{....} ~
-}
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
-}
+\references{ }
+\author{ Fabrice Colas }
+\note{ ~Make other sections like Warning with \section{Warning }{....} ~ }
+\seealso{ \code{\link{set_plot_data}}, \code{\link{statistical_patterns}}, \code{\link{get_coloring_scheme}}}
+\examples{ }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line

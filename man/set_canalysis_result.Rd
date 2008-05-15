@@ -15,7 +15,7 @@ set_canalysis_result(data = NULL, config = NULL, result = list())
   \item{result}{ ~~Describe \code{result} here~~ }
 }
 \details{
-  ~~ If necessary, more details than the description above ~~
+  
 }
 \value{
   ~Describe the value returned
@@ -24,8 +24,8 @@ set_canalysis_result(data = NULL, config = NULL, result = list())
   \item{comp2 }{Description of 'comp2'}
   ...
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
+\references{ }
+\author{ Fabrice Colas }
 \note{ ~~further notes~~ 
 
  ~Make other sections like Warning with \section{Warning }{....} ~

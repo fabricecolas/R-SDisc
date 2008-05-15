@@ -17,7 +17,7 @@ model_svm(formula, trainset, testset, kernel = "linear", type = "C-classificatio
   \item{type}{ ~~Describe \code{type} here~~ }
 }
 \details{
-  ~~ If necessary, more details than the description above ~~
+  
 }
 \value{
   ~Describe the value returned
@@ -26,8 +26,8 @@ model_svm(formula, trainset, testset, kernel = "linear", type = "C-classificatio
   \item{comp2 }{Description of 'comp2'}
   ...
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
+\references{ }
+\author{ Fabrice Colas }
 \note{ ~~further notes~~ 
 
  ~Make other sections like Warning with \section{Warning }{....} ~

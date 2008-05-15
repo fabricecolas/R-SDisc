@@ -15,7 +15,7 @@ stratified_traintest_split(data, K = 10, perc = 0.7)
   \item{perc}{ ~~Describe \code{perc} here~~ }
 }
 \details{
-  ~~ If necessary, more details than the description above ~~
+  
 }
 \value{
   ~Describe the value returned
@@ -24,8 +24,8 @@ stratified_traintest_split(data, K = 10, perc = 0.7)
   \item{comp2 }{Description of 'comp2'}
   ...
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
+\references{ }
+\author{ Fabrice Colas }
 \note{ ~~further notes~~ 
 
  ~Make other sections like Warning with \section{Warning }{....} ~

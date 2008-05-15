@@ -16,7 +16,7 @@ transform_longitudinal(data, fun, canalysis_variables = parkinson_canalysis_vari
   \item{effect}{ ~~Describe \code{effect} here~~ }
 }
 \details{
-  ~~ If necessary, more details than the description above ~~
+  
 }
 \value{
   ~Describe the value returned
@@ -25,8 +25,8 @@ transform_longitudinal(data, fun, canalysis_variables = parkinson_canalysis_vari
   \item{comp2 }{Description of 'comp2'}
   ...
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
+\references{ }
+\author{ Fabrice Colas }
 \note{ ~~further notes~~ 
 
  ~Make other sections like Warning with \section{Warning }{....} ~

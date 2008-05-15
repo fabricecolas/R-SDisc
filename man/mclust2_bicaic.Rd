@@ -20,7 +20,7 @@ mclust2_bicaic(modelName, loglik, n, d, G, noise = FALSE, equalPro = FALSE, ...)
   \item{\dots}{ ~~Describe \code{\dots} here~~ }
 }
 \details{
-  ~~ If necessary, more details than the description above ~~
+  
 }
 \value{
   ~Describe the value returned
@@ -29,8 +29,8 @@ mclust2_bicaic(modelName, loglik, n, d, G, noise = FALSE, equalPro = FALSE, ...)
   \item{comp2 }{Description of 'comp2'}
   ...
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
+\references{ }
+\author{ Fabrice Colas }
 \note{ ~~further notes~~ 
 
  ~Make other sections like Warning with \section{Warning }{....} ~

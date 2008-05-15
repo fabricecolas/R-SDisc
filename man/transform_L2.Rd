@@ -1,39 +1,29 @@
 \name{transform_L2}
 \alias{transform_L2}
-%- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
-\description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
-}
-\usage{
-transform_L2(data, tdata, var)
-}
-%- maybe also 'usage' for other objects documented here.
-\arguments{
-  \item{data}{ ~~Describe \code{data} here~~ }
-  \item{tdata}{ ~~Describe \code{tdata} here~~ }
-  \item{var}{ ~~Describe \code{var} here~~ }
-}
-\details{
-  ~~ If necessary, more details than the description above ~~
-}
-\value{
-  ~Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
-}
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
-\note{ ~~further notes~~ 
+\title{Normalize a variable relative to its L2 norm}
+\description{ This function normalizes the values of variable \code{var} in
+\code{data} relatively to the L2 norm. 
 
- ~Make other sections like Warning with \section{Warning }{....} ~
+The function outputs a transformed vector but also, for reproducibility on new
+data, a \code{tdata} structure which stores the transformation properties. So,
+when a non-null \code{tdata} structure is provided, the function normalizes
+\code{var} with respect to the value defined in \code{tdata}.  }
+\usage{ transform_L2(data, tdata) }
+\arguments{
+  \item{data}{ A data structure of type \code{canalysis_data} as constructed by
+               \code{set_canalysis_data},}
+  \item{tdata}{ A transformation-data structure of type \code{tdata} as
+               constructed by \code{set_tdata}.}
 }
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
+\details{ }
+\value{
+  It returns a list made of two elements:
+  \item{vdata }{ A numeric vector of length \code{nrow(attr(data,"data_o"))}, eventually exhibiting NA's,}
+  \item{tdata }{ A structure of type \code{tdata} where the transformation properties are defined.}
 }
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
+\references{ }
+\author{ Fabrice Colas }
+\note{ }
+\seealso{ \code{\link{transform_ABSMAX}}, \code{\link{transform_ALL}}, \code{\link{transform_AVG}}, \code{\link{transform_L1}}, \code{\link{transform_MAX}}, \code{\link{transform_MEDIAN}}, \code{\link{transform_MIN}}, \code{\link{transform_SIGMA}}, \code{\link{transform_addnoise}}, \code{\link{transform_adjust}}, \code{\link{transform_canalysis_data}}, \code{\link{transform_sibordering}}}
+\examples{ }
+% \keyword{ ~kwd1 }%- Also NEED an '\alias' for EACH other topic documented here.

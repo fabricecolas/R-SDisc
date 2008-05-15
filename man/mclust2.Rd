@@ -20,7 +20,7 @@ mclust2(data, G = NULL, modelNames = NULL, prior = NULL, control = emControl(), 
   \item{\dots}{ ~~Describe \code{\dots} here~~ }
 }
 \details{
-  ~~ If necessary, more details than the description above ~~
+  
 }
 \value{
   ~Describe the value returned
@@ -29,8 +29,8 @@ mclust2(data, G = NULL, modelNames = NULL, prior = NULL, control = emControl(), 
   \item{comp2 }{Description of 'comp2'}
   ...
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
+\references{ }
+\author{ Fabrice Colas }
 \note{ ~~further notes~~ 
 
  ~Make other sections like Warning with \section{Warning }{....} ~

@@ -18,7 +18,7 @@ set_plot_data(canalysis_data, canalysis_config, model = NULL, plot_data_fun = li
   \item{type}{ ~~Describe \code{type} here~~ }
 }
 \details{
-  ~~ If necessary, more details than the description above ~~
+  
 }
 \value{
   ~Describe the value returned
@@ -27,8 +27,8 @@ set_plot_data(canalysis_data, canalysis_config, model = NULL, plot_data_fun = li
   \item{comp2 }{Description of 'comp2'}
   ...
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
+\references{ }
+\author{ Fabrice Colas }
 \note{ ~~further notes~~ 
 
  ~Make other sections like Warning with \section{Warning }{....} ~

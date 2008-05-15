@@ -1,39 +1,30 @@
 \name{cresult_numeric_characteristics}
 \alias{cresult_numeric_characteristics}
 %- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
+\title{ Compute statistics on the cluster results}
 \description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
-}
-\usage{
-cresult_numeric_characteristics(cresult, canalysis_data, canalysis_config)
-}
+On the different models of a cluster result (\code{cresult}), this function
+computes user-defined statistics. The functions are listed into the general
+cluster analysis configuration of type \code{canalysis_config}.  }
+\usage{ cresult_numeric_characteristics(cresult, canalysis_data,
+canalysis_config) }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{cresult}{ ~~Describe \code{cresult} here~~ }
-  \item{canalysis_data}{ ~~Describe \code{canalysis_data} here~~ }
-  \item{canalysis_config}{ ~~Describe \code{canalysis_config} here~~ }
+  \item{cresult}{ A cluster result as provided by \code{analysis} or \code{calgo},}
+  \item{canalysis_data}{ A data container for cluster analysis of type
+      \code{canalysis_data}, as constructed by \code{set_canalysis_data}}
+  \item{canalysis_config}{ A cluster analysis general configuration of type
+      \code{canalysis_config}, as constructed by \code{set_canalysis_config}}
 }
-\details{
-  ~~ If necessary, more details than the description above ~~
-}
+\details{ }
 \value{
-  ~Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
+  \item{cresult }{ A cluster result as provided by \code{analysis} or \code{calgo}.}
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
-\note{ ~~further notes~~ 
-
- ~Make other sections like Warning with \section{Warning }{....} ~
-}
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
-}
+\references{ }
+\author{ Fabrice Colas }
+\note{ }
+\seealso{  \code{\link{get_stats_fun}}, \code{\link{cresult_graphic_characteristics}},
+   \code{\link{compare_canalysis}}, \code{\link{analysis}} }
+\examples{ }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line

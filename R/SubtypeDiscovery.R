@@ -7,13 +7,15 @@ function(data, config, calgo){
       # | VISUALIZE DISTRIB AND CORRELATION ON ORIGINAL AND TRANSFORMED DATA
       variable_graphic_report(data, which_data = "original", prefix = prefix)
       variable_graphic_report(data, prefix = prefix)
-      # | CLUSTERING ANALYSIS 
+      # | CLUSTERING ANALYSIS, RK 'CALGO' IS AN OBJECT WITH, AS MAIN ELEMENT, A
+      # | FUNCTION.
       cresult           <- calgo(data, config)
-      # | VISUAL CHARACTERISTICS OF THE CLUSTERS
+      # | VISUAL CHARACTERISTICS OF THE CLUSTERS: UPDATES CRESULT AND RETURN IT
       cresult           <- cresult_graphic_characteristics(cresult,canalysis_data = data,canalysis_config = config)
    graphics.off()
    # ------------
-   # CLUSTER RESULT CHARACTERISTIZATION AND EVALUATION
+   # CLUSTER RESULT CHARACTERISTIZATION AND EVALUATION: UPDATES CRESULT AND
+   # RETURN IT
    cresult              <- cresult_numeric_characteristics(cresult, data, config)
    # COMPARE BEST CLUSTERS  2-BY-2 AND SAVE OUTPUT INTO CSV FILES
    compare_canalysis(cresult, config=config)
@@ -57,8 +59,11 @@ function(analysis1,analysis2=NULL,query=NULL,config){
          model[[1]] <- retrieve_model(analysis1,vertices[v,1])
          model[[2]] <- retrieve_model(analysis1,vertices[v,2])
          lprefix <- paste2(prefix,"_",gsub(",","_",vertices[v,1]),"-",gsub(",","_",vertices[v,2]),".csv")
-         if( !is.na(model[[1]][["model"]]$loglik) && !is.na(model[[2]][["model"]]$loglik))
-            cross_comparison_results[[v]] <- cross_compare_models(model[[1]],model[[2]],fileNameCSV=lprefix)
+         if( !is.na(model[[1]][["model"]]$loglik) && !is.na(model[[2]][["model"]]$loglik)){
+            cross_comparison_results[[v]] <- cross_compare_models(model[[1]],model[[2]])
+            print(lprefix)
+            write.table(cross_comparison_results[[v]],file=lprefix,na="",dec=",",sep=";")
+         }
       }
    }
    for(m in unique(as.character(vertices))){
@@ -82,7 +87,7 @@ function(data,fun=mean){
 `cresult_graphic_characteristics` <-
 function(cresult,canalysis_data,canalysis_config){
    # RETRIEVE VIGNETTE TITLES 
-   parcoord_titles      <- unique(as.character(attr(canalysis_data,"settings")[,"var_by_groups"]))
+   parcoord_titles      <- unique(as.character(attr(canalysis_data,"settings")[,"visu_groups"]))
    fig_params           <- list()
    for(v in parcoord_titles)
       fig_params        <- c(fig_params, list(list(title = v , type = "plot_parcoord")))
@@ -91,11 +96,11 @@ function(cresult,canalysis_data,canalysis_config){
    fig_params           <- c(fig_params, list(list(title = "", type = "plot_dendro_cluster")))
    fig_params           <- c(fig_params, list(list(title = "", type = "plot_dendro_var")))
    # PAGE-MARGINS
-   par(mfrow=c(3,3), 'las'=1,'mai'=c(0.4,0.55,0.18,0.05))
    for( m_idx in 1:length(cresult[["out"]]) ){
       m         <- cresult[["out"]][[m_idx]]
       pdata     <- list()
       if(!is.na(m[["loglik"]]) & m[["G"]] >= 3){
+         par(mfrow=c(3,3), 'las'=1,'mai'=c(0.2,0.7,0.5,0.7),new=FALSE)
          for(fig in fig_params)
             pdata <- c(pdata, list(set_plot_data(canalysis_data = canalysis_data , 
                         canalysis_config = canalysis_config , model = m , 
@@ -128,7 +133,7 @@ function(cresult,canalysis_data,canalysis_config){
 }
 
 `cross_compare_models` <-
-function(model1,model2,fileNameCSV=today()){
+function(model1,model2){
    # CONTINGENCY TABLE BY CROSS COMPARISONS BETWEEN MODEL 1 AND 2
    x_comparison	  <- as.table(ftable(model1[["labelling"]],model2[["labelling"]]))
    # USE JOINT PROBABILITIES TO COMPUTE THE CONTINGENCY TABLE (%) 
@@ -184,11 +189,6 @@ function(model1,model2,fileNameCSV=today()){
    # OF ZEROS TO CLEAR MANUALLY. IN WRITE.CSV2 'NA' ARE SUBSTITUTED BY EMPTY
    # STRINGS
    x_comparison[is.na(x_comparison) ] <- ""
-   if(!is.null(fileNameCSV)){
-      # WRITE OUTPUT IN A CSV FILE
-      print(fileNameCSV)
-      write.table(x_comparison,file=fileNameCSV,na="",dec=",",sep=";")
-   }
    return(x_comparison)
 }
 
@@ -310,11 +310,11 @@ function(z1, z2){
 `generate_canalysis_config` <-
 function(data){
    # DEFINE THE DEFAULT VALUES OF OUR CONF MATRIX
-   conf_col_names <- list("group","in_canalysis","fun_transform","var_by_groups","visu_ycoord")
-   default_values <- c(TRUE,"transform_AVG transform_SIGMA","var_group_1","NULL")
+   conf_col_names <- list("group","in_canalysis","fun_transform","visu_groups","visu_ycoord")
+   default_values <- c("",TRUE,"transform_AVG transform_SIGMA","var_group_1","NULL")
    # in_canalysis? (TRUE/FALSE) 
    #    Is the variable passed to the clustering algorithm?
-   # var_by_groups (CHAR VECTOR) 
+   # visu_groups (CHAR VECTOR) 
    #    Group names, in use for the characterization by logodds and the
    #    visualization.
    # visu_ycoord? (INTEGER IN [1,10] OR NULL) 
@@ -814,7 +814,7 @@ function(visu_params,title_str){
    plot(x=0 ,new=TRUE ,ann=FALSE ,pch=18,col="white",axes=FALSE
       , xlim=c(visu_params[["xlim"]]$min,visu_params[["xlim"]]$max)
       , ylim=c(visu_params[["ylim"]]$min,visu_params[["ylim"]]$max))
-   title(main=title_str)
+   title(main=title_str,cex=0.7)
 }
 
 `plot_legend` <-
@@ -910,7 +910,6 @@ function(
           prefix = NULL
         , visu_params = NULL
         , stats_fun = list(oddratios = get_stats_fun(fun_name="oddratios"))
-        , clustering_fun = model_based_clustering
         , bbox_threshold = 5){
    #
    prefix <- paste2(today(),"_",prefix)
@@ -919,7 +918,6 @@ function(
      visu_params
    ,  prefix = prefix
    , stats_fun = stats_fun
-   , clustering_fun = clustering_fun
    , bbox_threshold = bbox_threshold
    , class = "canalysis_config"
    )
@@ -943,7 +941,7 @@ function(data, data_o = NULL, tdata = NULL, settings, init_fun = list(init_data_
       tdata     <- t_result[["tdata"]]
    }
    #
-   cdata_out <- structure( data , data_o = data_o  , tdata = tdata , 
+   cdata_out <- structure( data.matrix(data) , data_o = data_o  , tdata = tdata , 
                         settings = settings , class = "canalysis_data")
    return(cdata_out)
 }
@@ -963,6 +961,63 @@ function(data = NULL, config = NULL , result = list()){
    else
       cdata_out <- NULL
    return(cdata_out)
+}
+
+`get_plot_fun_parcoord` <- function(x, def_visu_params , def_color_sel , def_T_s , def_title_prefix ){
+   plot_fun <- function(x, visu_params = def_visu_params , color_sel = def_color_sel , T_s = def_T_s ,title_prefix = def_title_prefix){
+      plot_init(visu_params,title_prefix)
+      # LOOP OVER THE DIFFERENT STATS TO PLOT == RAYS TO GRAPH
+      for(x_name in names(x)){
+         pattern         <- x[[x_name]][color_sel[["cluster_order"]],]
+         lwd             <- 3
+         lty             <- "solid"
+         if(x_name != "center_pattern") {
+            lwd          <- 1
+            lty          <- "dashed"
+         }
+         plot_parcoord(pattern = pattern, T_s = T_s,
+            color_sel = color_sel, lwd = lwd, lty = lty,
+            title_prefix = title_prefix)
+      }
+      axis(2,at=as.numeric(T_s[,"visu_ycoord"]),labels=colnames(pattern),las=2,tick=FALSE)
+      axis(1,at=seq(from = visu_params[["xlim"]]$min , to =
+         visu_params[["xlim"]]$max , by = ((visu_params[["xlim"]]$max -
+         visu_params[["xlim"]]$min)/4)))
+   }
+   return(plot_fun)
+}
+
+`get_plot_fun_image`  <- function(x, def_visu_params, def_title_prefix){
+   plot_fun <- function(x, visu_params = def_visu_params,title_prefix = def_title_prefix){
+#      plot_init(visu_params,title_prefix)
+      x <- x[[1]]
+      image(1L:nrow(x), 1L:ncol(x), x, xlim = 0.5 + c(0, nrow(x)), ylim = 0.5 +
+         c(0, ncol(x)), axes = FALSE, xlab = "", ylab = "",
+         col=visu_params[["color_gradient"]], main=title_prefix,add=FALSE)
+      axis(2, 1L:ncol(x), labels = colnames(x), las = 2, line = -0.5, tick = 0,
+         cex.axis = visu_params[["cex"]])
+      axis(1, 1L:nrow(x), labels = row.names(x), las = 1, line = -0.5, tick =
+         0, cex.axis = visu_params[["cex"]])
+   }
+   return(plot_fun)
+}
+
+`get_plot_fun_legend`  <- function(x, def_visu_params, def_color_settings ){
+   plot_fun  <- function(x, visu_params = def_visu_params, color_settings = def_color_settings){
+         plot_legend(pattern = x, color_settings =
+         color_settings, xcoord= canalysis_config[["legend_xcoord"]], 
+         ycoord= canalysis_config[["legend_ycoord"]])
+      }
+   return(plot_fun)
+}
+
+`get_plot_fun_dendro`  <- function(x, def_visu_params , def_title_prefix ){
+   plot_fun  <- function(x, visu_params = def_visu_params,title_prefix = def_title_prefix){
+#         plot_init(visu_params,title_prefix)
+         plot(x[[1]], axes = FALSE, yaxs = "i", main=title_prefix, ylab=NULL,
+         cex=visu_params[["cex"]])
+      }
+   return(plot_fun)
 }
 
 `set_plot_data` <-
@@ -991,71 +1046,30 @@ function(
    # 
    if(type == "plot_parcoord"){
       # FOR PARCOORD, LIMIT THE VISU TO THE VAR OF SUCH A VIGNETTE
-      visu_var          <- row.names(settings[settings[,"var_by_groups"] == title_str,])
+      visu_var          <- row.names(settings[settings[,"visu_groups"] == title_str,])
       # COMPUTE THE DATA_PLOT
       plot_data            <- list()
       title_str         <- paste2("(",model[["modelName"]],",",model[["G"]],") ", title_str)
       for(fun_name in names(plot_data_fun))
          plot_data[[fun_name]] <- compute_plot_data(as.matrix(labelled_data[,c(visu_var,"class")]),plot_data_fun[[fun_name]])
-      plot_fun <- function(x, visu_params = canalysis_config, color_sel = color_settings, T_s = settings[visu_var,],title_prefix = title_str){
-                        plot_init(visu_params,title_prefix)
-                        # LOOP OVER THE DIFFERENT STATS TO PLOT == RAYS TO GRAPH
-                        for(x_name in names(x)){
-                           pattern         <- x[[x_name]][color_sel[["cluster_order"]],]
-                           lwd             <- 3
-                           lty             <- "solid"
-                           if(x_name != "center_pattern") {
-                              lwd          <- 1
-                              lty          <- "dashed"
-                           }
-                           plot_parcoord(pattern = pattern, T_s = T_s,
-                              color_sel = color_sel, lwd = lwd, lty = lty,
-                              title_prefix = title_prefix)
-                        }
-                        axis(2,at=as.numeric(T_s[,"visu_ycoord"]),labels=colnames(pattern),las=2,tick=FALSE)
-                        axis(1,at=seq(from = visu_params[["xlim"]]$min , to =
-                           visu_params[["xlim"]]$max , by = ((visu_params[["xlim"]]$max -
-                           visu_params[["xlim"]]$min)/4)))
-                  }
+      #
+      plot_fun <- get_plot_fun_parcoord(x, def_visu_params = canalysis_config, def_color_sel = color_settings, def_T_s = settings[visu_var,],def_title_prefix = title_str)
    }
    if(type == "plot_image"){
       plot_data <- list(center_pattern=center_pattern)
-      plot_fun  <- function(x, visu_params = canalysis_config,title_prefix = title_str){
-                        plot_init(visu_params,title_prefix)
-                        x <- x[[1]]
-                        image(1L:nrow(x), 1L:ncol(x), x, xlim = 0.5 + c(0, nrow(x)),
-                           ylim = 0.5 + c(0, ncol(x)), axes = FALSE, xlab = "",
-                           ylab = "", col=visu_params[["color_gradient"]],
-                           main="Average pattern visualization")
-                        axis(2, 1L:ncol(x), labels = colnames(x), las = 2,
-                           line = -0.5, tick = 0, cex.axis = visu_params[["cex"]])
-                        axis(1, 1L:nrow(x), labels = row.names(x), las =
-                           1, line = -0.5, tick = 0, cex.axis = visu_params[["cex"]])
-                        }
+      plot_fun  <- get_plot_fun_image(x, def_visu_params = canalysis_config,def_title_prefix = title_str)
    }
    if(type == "plot_legend"){
       plot_data <- list(class_count = table(labelled_data[,"class"]))
-      plot_fun  <- function(x, visu_params = canalysis_config){
-                        plot_legend(pattern = x, color_settings =
-                        color_settings, xcoord= canalysis_config[["legend_xcoord"]], 
-                        ycoord= canalysis_config[["legend_ycoord"]])
-                     }
+      plot_fun  <- get_plot_fun_legend(x, def_visu_params = canalysis_config, def_color_settings = color_settings)
    }
    if(type == "plot_dendro_cluster"){
       plot_data <- list(cluster_dendro = cluster_dendro)
-      plot_fun  <- function(x, visu_params = canalysis_config,title_prefix = title_str){
-                        plot_init(visu_params,title_prefix)
-                        plot(x[[1]], axes = FALSE, yaxs = "i", main="Clusters arranged
-                        by similarity", ylab=NULL, cex=visu_params[["cex"]])
-                     }
+      plot_fun  <- get_plot_fun_dendro(x, def_visu_params = canalysis_config,def_title_prefix = title_str)
    }
    if(type == "plot_dendro_var"){
       plot_data <- list(var_dendro = var_dendro)
-      plot_fun  <- function(x, visu_params = canalysis_config,title_prefix = title_str){
-                        plot_init(visu_params,title_prefix)
-                        plot(x[[1]], axes = FALSE, yaxs = "i", main="Clusters arranged
-                        by similarity", ylab=NULL, cex=visu_params[["cex"]])
-                     }
+      plot_fun  <- get_plot_fun_dendro(x, def_visu_params = canalysis_config,def_title_prefix = title_str)
    }
    # CONSTRUCT THE DATA STRUCTURE
    plot_data_out <- structure(plot_data, plot_fun = plot_fun, class = "plot_data")
@@ -1063,10 +1077,11 @@ function(
 }
 
 `set_tdata` <-
-function(testimate=NULL,tfun=NULL){
+function(testimate=NULL,tfun=NULL,var=NULL){
   tdata_out <- structure(
        testimate
      , tfun  = tfun
+     , var   = var
      , class = "tdata")
   return(tdata_out)
 }
@@ -1436,78 +1451,78 @@ function(){
 }
 
 `transform_ABSMAX` <-
-function(data,tdata,var){
-   vdata        <- data[,var]
+function(data,tdata){
+   vdata        <- data[,attr(tdata,"var")]
    tfun         <- list(function(x){return(max(abs(x,na.rm=TRUE),na.rm=TRUE))}
                       , function(x){return(do.call('/',x))})
-   return(transform_ALL(vdata=vdata,tfun=tfun,tdata=tdata))
+   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
 }
 
 `transform_ALL` <-
-function(vdata,tfun=list(function(x){return(0)},function(x){return(do.call('+',x))}),tdata){
-   if(length(tdata) == 0) 
-      testimate         <- tfun[[1]](vdata)
+function(data,tfun=list(function(x){return(0)},function(x){return(do.call('+',x))}),tdata){
+   if(is.null(attr(tdata,"tfun"))) 
+      testimate         <- tfun[[1]](data)
    else 
       testimate         <- as.numeric(tdata)
-   vdata                <- tfun[[2]](list(vdata,testimate))
-   tdata_out            <- set_tdata(testimate=testimate,tfun=tfun)
+   vdata                <- tfun[[2]](list(data,testimate))
+   tdata_out            <- set_tdata(testimate=testimate,tfun=tfun,var=attr(tdata,"var"))
    return(list(data=vdata,tdata=tdata_out))
 }
 
 `transform_AVG` <-
-function(data,tdata,var){
-   vdata        <- data[,var]
+function(data,tdata){
+   vdata        <- data[,attr(tdata,"var")]
    tfun         <- list(function(x){return(mean(x,na.rm=TRUE))}
                       , function(x){return(do.call('-',x))})
-   return(transform_ALL(vdata=vdata,tfun=tfun,tdata=tdata))
+   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
 }
 
 `transform_L1` <-
-function(data,tdata,var){
-   vdata        <- data[,var]
+function(data,tdata){
+   vdata        <- data[,attr(tdata,"var")]
    tfun      <- list(function(x){return(x/sqrt(sum(x,na.rm=TRUE)))}
                       , function(x){return(do.call('/',x))})
-   return(transform_ALL(vdata=vdata,tfun=tfun,tdata=tdata))
+   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
 }
 
 `transform_L2` <-
-function(data,tdata,var){
-   vdata        <- data[,var]
+function(data,tdata){
+   vdata        <- data[,attr(tdata,"var")]
    tfun      <- list(function(x){return(x/sqrt(sum(x^2,na.rm=TRUE)))}
                       , function(x){return(do.call('/',x))})
-   return(transform_ALL(vdata=vdata,tfun=tfun,tdata=tdata))
+   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
 }
 
 `transform_MAX` <-
-function(data,tdata,var){
-   vdata        <- data[,var]
+function(data,tdata){
+   vdata        <- data[,attr(tdata,"var")]
    tfun         <- list(function(x){return(max(x,na.rm=TRUE))}
                       , function(x){return(do.call('-', x))})
-   return(transform_ALL(vdata=vdata,tfun=tfun,tdata=tdata))
+   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
 }
 
 `transform_MEDIAN` <-
-function(data,tdata,var){
-   vdata        <- data[,var]
+function(data,tdata){
+   vdata        <- data[,attr(tdata,"var")]
    tfun         <- list(function(x){return(median(x,na.rm=TRUE))}
                       , function(x){return(do.call('-',x))})
-   return(transform_ALL(vdata=vdata,tfun=tfun,tdata=tdata))
+   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
 }
 
 `transform_MIN` <-
-function(data,tdata,var){
-   vdata        <- data[,var]
+function(data,tdata){
+   vdata        <- data[,attr(tdata,"var")]
    tfun       <- list(function(x){return(min(x,na.rm=TRUE))}
                       , function(x){return(do.call('-',x))})
-   return(transform_ALL(vdata=vdata,tfun=tfun,tdata=tdata))
+   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
 }
 
 `transform_SIGMA` <-
-function(data,tdata,var){
-   vdata        <- data[,var]
+function(data,tdata){
+   vdata        <- data[,attr(tdata,"var")]
    tfun         <- list(function(x){return(sd(x,na.rm=TRUE))}
                       , function(x){return(do.call('/', x))})
-   return(transform_ALL(vdata=vdata,tfun=tfun,tdata=tdata))
+   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
 }
 
 `transform_addnoise` <-
@@ -1549,11 +1564,19 @@ function(
 function(data, tdata, tformula){
    var          <- strsplit(tformula,"~")[[1]][1]
    data         <- as.data.frame(data)
-   if(is.null(tdata)){
-      tdata             <- lm(as.formula(tformula),data=data)
-      tdata[["formula"]]<- tformula
-      tdata[["formula"]]<- tformula
-      vdata             <- residuals(tdata)
+   if(length(tdata) == 0){
+      print(tformula)
+      tdata_lm          <- lm(as.formula(tformula),data=data)
+      tdata_lm[["print"]]<- tformula
+      tdata             <- set_tdata(tdata_lm,tfun="transform_adjust",var=attr(tdata,'var'))
+      # AS THE VARS WHICH ARE NOT INVOLVED IN THE CANALYSIS MAY HAVE MISSING
+      # VALUES, TO PRESERVE THE NA'S WE REBUILD A MATRIX DATA STRUCTURE WHICH
+      # SERVES TO INDEX PROPERLY THE RESIDUALS. AND WE RETURN A SIMPLE NUMERIC 
+      # VECTOR WHICH HAS SOME NA'S IN IT.
+      vdata             <- matrix(NA,nrow(data),1,dimnames=list(row.names(data),var))
+      tresiduals        <- residuals(tdata)
+      vdata[names(tresiduals),] <- tresiduals
+      vdata             <- as.numeric(vdata)
    }
    else
       vdata             <- data[,var]-predict(tdata,data)
@@ -1565,22 +1588,28 @@ function(data,settings){
    tdata_out <- list()
    # FOR EACH VAR
    for(var in row.names(settings)){
-      fun_transform     <- strsplit(settings[var,"fun_transform"],"[ ]+")[[1]]
       tdata_out[[var]]  <- list()
-      # TODO transform the char string into a function "Call", and test
+      # USE (MULTIPLE)-SPACES AS SEPARATOR BETWEEN TRANSFORMATION FUNCTIONS
+      fun_transform     <- strsplit(settings[var,"fun_transform"],"[ ]+")[[1]]
       for(lfun in fun_transform){
-         pattern        <-paste2("[('\")]")
-         lfun           <- strsplit(gsub(pattern," ",lfun),"[ ]+")[[1]]
-         arg_list       <- list(data,tdata=attr(data,"tdata")[[var]])
-         if(length(lfun) == 1) 
-            lfun        <-   append(lfun,var)
-         arg_list       <- append(arg_list,lfun[2])
-         # RETURNS 'VDATA' AND TDATA_OUT
-         var_result     <- do.call(lfun[1],args=arg_list)
-         # UPDATE THE MAIN DATA FRAME
-         data[,var]     <- as.numeric(var_result[["data"]][row.names(data),])
+         # IN CASE 'LFUN' AS AN INSIDE PARAMETER, RETRIEVE IT (1) REPLACE ALL
+         # ('\") BY SPACES AND THEN (2) SPLIT
+         lfun                   <- strsplit(gsub("[('\")]"," ",lfun),"[ ]+")[[1]]
+         # IF NO TDATA IS DEFINED, THEN INIT ONE TOi USE AS PATTERN WITH 'VAR'
+         # SET
+         tdata_var_lfun         <- attr(data,"tdata")[[var]][[lfun[1]]]
+         if(is.null(tdata_var_lfun))
+            tdata_var_lfun      <- set_tdata(testimate=NULL,tfun=NULL,var=var)
+         arg_list               <- list(data,tdata=tdata_var_lfun)
+         # IF LFUN HAS SOME ARGUMENTS, WE APPEND THEM TO THE ARGUMENT LIST
+         if(!is.na(lfun[2]))
+            arg_list            <- append(arg_list,lfun[2])
+         # PROCEED TO THE TRANSFORM AND OUTPUT A DATA VECTOR AND A TDATA
+         var_result             <- do.call(lfun[1],args=arg_list)
+         # UPDATE THE MAIN DATA FRAME WITH THE VECTOR
+         data[,var]             <- var_result[["data"]]
          # KEEP RECORD OF EACH INDIVIDUAL TRANSFORMATION FOR THE 'VAR'
-         tdata_out[[var]][[lfun[1]]]     <- var_result[["tdata"]]
+         tdata_out[[var]][[lfun[1]]] <- var_result[["tdata"]]
       }
    }
    return(list(data=data,tdata=tdata_out))

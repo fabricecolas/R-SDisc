@@ -15,7 +15,7 @@ cross_compare_models(model1, model2, fileNameCSV = today())
   \item{fileNameCSV}{ ~~Describe \code{fileNameCSV} here~~ }
 }
 \details{
-  ~~ If necessary, more details than the description above ~~
+  
 }
 \value{
   ~Describe the value returned
@@ -24,8 +24,8 @@ cross_compare_models(model1, model2, fileNameCSV = today())
   \item{comp2 }{Description of 'comp2'}
   ...
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
+\references{ }
+\author{ Fabrice Colas }
 \note{ ~~further notes~~ 
 
  ~Make other sections like Warning with \section{Warning }{....} ~

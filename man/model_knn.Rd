@@ -19,7 +19,7 @@ model_knn(formula, trainset, testset, k = 1, l = 0, prob = FALSE, use.all = TRUE
   \item{use.all}{ ~~Describe \code{use.all} here~~ }
 }
 \details{
-  ~~ If necessary, more details than the description above ~~
+  
 }
 \value{
   ~Describe the value returned
@@ -28,8 +28,8 @@ model_knn(formula, trainset, testset, k = 1, l = 0, prob = FALSE, use.all = TRUE
   \item{comp2 }{Description of 'comp2'}
   ...
 }
-\references{ ~put references to the literature/web site here ~ }
-\author{ ~~who you are~~ }
+\references{ }
+\author{ Fabrice Colas }
 \note{ ~~further notes~~ 
 
  ~Make other sections like Warning with \section{Warning }{....} ~

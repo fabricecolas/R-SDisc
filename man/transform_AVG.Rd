@@ -28,7 +28,7 @@ when a non-null \code{tdata} structure is provided, the function normalizes
 \code{\link{transform_AVG}}, \code{\link{transform_L1}},
 \code{\link{transform_MAX}}, \code{\link{transform_MEDIAN}},
 \code{\link{transform_MIN}}, \code{\link{transform_SIGMA}},
-\code{\link{transform_addnoise}}, \code{\link{transform_adjust}},
+\code{\link{transform_adjust}},
 \code{\link{transform_canalysis_data}}, \code{\link{transform_sibordering}}}
 \examples{ }
-% \keyword{ ~kwd1 }
+%\keyword{ ~kwd1 }

@@ -6,13 +6,12 @@
   ~~ A concise (1-5 lines) description of what the function does. ~~
 }
 \usage{
-cross_compare_models(model1, model2, fileNameCSV = today())
+cross_compare_models(model1, model2)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{model1}{ ~~Describe \code{model1} here~~ }
   \item{model2}{ ~~Describe \code{model2} here~~ }
-  \item{fileNameCSV}{ ~~Describe \code{fileNameCSV} here~~ }
 }
 \details{
   
@@ -35,5 +34,5 @@ cross_compare_models(model1, model2, fileNameCSV = today())
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
+%\keyword{ ~kwd1 }
+% __ONLY ONE__ keyword per line

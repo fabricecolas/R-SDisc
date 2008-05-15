@@ -1,34 +1,11 @@
 \name{today}
 \alias{today}
-%- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
-\description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
-}
-\usage{
-today()
-}
-%- maybe also 'usage' for other objects documented here.
-\details{
-  
-}
-\value{
-  ~Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
-}
+\title{Today date as 'YYYY-MM-DD'}
+\description{ Return today date string as 'YYYY-MM-DD', e.g. 2008-02-31. Useful
+to track files generated in the course of the different analysis.}
+\usage{ today() }
 \references{ }
 \author{ Fabrice Colas }
-\note{ ~~further notes~~ 
-
- ~Make other sections like Warning with \section{Warning }{....} ~
-}
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
-}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
+\seealso{ \code{\link{paste2}}}
+\examples{ print(today()) }
+% __ONLY ONE__ keyword per line

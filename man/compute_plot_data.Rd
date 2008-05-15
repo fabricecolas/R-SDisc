@@ -27,7 +27,7 @@ omitting them.  }
 \references{ }
 \author{ Fabrice Colas }
 \note{ ~Make other sections like Warning with \section{Warning }{....} ~ }
-\seealso{ \code{\link{set_plot_data}}, \code{\link{statistical_patterns}}, \code{\link{get_coloring_scheme}}}
+\seealso{ \code{\link{set_plot_data}}, \code{\link{get_coloring_scheme}}}
 \examples{ }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

@@ -1,39 +1,26 @@
 \name{set_canalysis_result}
 \alias{set_canalysis_result}
-%- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
+\title{ Prepare a cluster analysis result object }
 \description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
+   This constructor simply returns a data structure embedding the cluster result
+   together with the data (\code{canalysis_data}) and the global configuration
+   (\code{canalysis_config}). Its has for main element the cluster result.  
 }
-\usage{
-set_canalysis_result(data = NULL, config = NULL, result = list())
-}
-%- maybe also 'usage' for other objects documented here.
+\usage{ set_canalysis_result(data = NULL, config = NULL, result = list()) }
 \arguments{
-  \item{data}{ ~~Describe \code{data} here~~ }
-  \item{config}{ ~~Describe \code{config} here~~ }
-  \item{result}{ ~~Describe \code{result} here~~ }
-}
-\details{
-  
+  \item{data}{ Of type \code{canalysis_data},}
+  \item{config}{ Of type \code{canalysis_config},}
+  \item{result}{ A list containing the clustering algorithm output. }
 }
 \value{
-  ~Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
+  A data structure with four elements:
+  \item{result}{ The clustering algorithm output,}
+  \item{data}{ Of type \code{canalysis_data},}
+  \item{config}{ Of type \code{canalysis_config},}
+  \item{class}{ \code{canalysis_result}.}
 }
-\references{ }
 \author{ Fabrice Colas }
-\note{ ~~further notes~~ 
-
- ~Make other sections like Warning with \section{Warning }{....} ~
-}
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
-}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
+\seealso{ \code{\link{set_calgo}}, \code{\link{set_canalysis_config}},
+\code{\link{set_canalysis_data}}, \code{\link{set_canalysis_result}},
+\code{\link{set_plot_data}}, \code{\link{set_tdata}} }
+%\keyword{ ~kwd1 }

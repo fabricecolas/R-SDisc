@@ -951,10 +951,8 @@ function(data = NULL, config = NULL , result = list()){
    if(class(data) == "canalysis_data" & class(config) == "canalysis_config"){
       cdata_out <- structure(
       result
-      , config = 
       , data = data
-      , model = model
-      , settings = settings
+      , config = config 
       , class = "canalysis_result"
       )
    }
@@ -963,7 +961,7 @@ function(data = NULL, config = NULL , result = list()){
    return(cdata_out)
 }
 
-`get_plot_fun_parcoord` <- function(x, def_visu_params , def_color_sel , def_T_s , def_title_prefix ){
+`get_plot_fun_parcoord` <- function(def_visu_params , def_color_sel , def_T_s , def_title_prefix ){
    plot_fun <- function(x, visu_params = def_visu_params , color_sel = def_color_sel , T_s = def_T_s ,title_prefix = def_title_prefix){
       plot_init(visu_params,title_prefix)
       # LOOP OVER THE DIFFERENT STATS TO PLOT == RAYS TO GRAPH
@@ -987,7 +985,7 @@ function(data = NULL, config = NULL , result = list()){
    return(plot_fun)
 }
 
-`get_plot_fun_image`  <- function(x, def_visu_params, def_title_prefix){
+`get_plot_fun_image`  <- function(def_visu_params, def_title_prefix){
    plot_fun <- function(x, visu_params = def_visu_params,title_prefix = def_title_prefix){
 #      plot_init(visu_params,title_prefix)
       x <- x[[1]]
@@ -1002,16 +1000,16 @@ function(data = NULL, config = NULL , result = list()){
    return(plot_fun)
 }
 
-`get_plot_fun_legend`  <- function(x, def_visu_params, def_color_settings ){
+`get_plot_fun_legend`  <- function(def_visu_params, def_color_settings ){
    plot_fun  <- function(x, visu_params = def_visu_params, color_settings = def_color_settings){
          plot_legend(pattern = x, color_settings =
-         color_settings, xcoord= canalysis_config[["legend_xcoord"]], 
-         ycoord= canalysis_config[["legend_ycoord"]])
+         color_settings, xcoord= visu_params[["legend_xcoord"]], 
+         ycoord= visu_params[["legend_ycoord"]])
       }
    return(plot_fun)
 }
 
-`get_plot_fun_dendro`  <- function(x, def_visu_params , def_title_prefix ){
+`get_plot_fun_dendro`  <- function(def_visu_params , def_title_prefix ){
    plot_fun  <- function(x, visu_params = def_visu_params,title_prefix = def_title_prefix){
 #         plot_init(visu_params,title_prefix)
          plot(x[[1]], axes = FALSE, yaxs = "i", main=title_prefix, ylab=NULL,
@@ -1053,23 +1051,23 @@ function(
       for(fun_name in names(plot_data_fun))
          plot_data[[fun_name]] <- compute_plot_data(as.matrix(labelled_data[,c(visu_var,"class")]),plot_data_fun[[fun_name]])
       #
-      plot_fun <- get_plot_fun_parcoord(x, def_visu_params = canalysis_config, def_color_sel = color_settings, def_T_s = settings[visu_var,],def_title_prefix = title_str)
+      plot_fun <- get_plot_fun_parcoord(def_visu_params = canalysis_config, def_color_sel = color_settings, def_T_s = settings[visu_var,],def_title_prefix = title_str)
    }
    if(type == "plot_image"){
       plot_data <- list(center_pattern=center_pattern)
-      plot_fun  <- get_plot_fun_image(x, def_visu_params = canalysis_config,def_title_prefix = title_str)
+      plot_fun  <- get_plot_fun_image(def_visu_params = canalysis_config,def_title_prefix = title_str)
    }
    if(type == "plot_legend"){
       plot_data <- list(class_count = table(labelled_data[,"class"]))
-      plot_fun  <- get_plot_fun_legend(x, def_visu_params = canalysis_config, def_color_settings = color_settings)
+      plot_fun  <- get_plot_fun_legend(def_visu_params = canalysis_config, def_color_settings = color_settings)
    }
    if(type == "plot_dendro_cluster"){
       plot_data <- list(cluster_dendro = cluster_dendro)
-      plot_fun  <- get_plot_fun_dendro(x, def_visu_params = canalysis_config,def_title_prefix = title_str)
+      plot_fun  <- get_plot_fun_dendro(def_visu_params = canalysis_config,def_title_prefix = title_str)
    }
    if(type == "plot_dendro_var"){
       plot_data <- list(var_dendro = var_dendro)
-      plot_fun  <- get_plot_fun_dendro(x, def_visu_params = canalysis_config,def_title_prefix = title_str)
+      plot_fun  <- get_plot_fun_dendro(def_visu_params = canalysis_config,def_title_prefix = title_str)
    }
    # CONSTRUCT THE DATA STRUCTURE
    plot_data_out <- structure(plot_data, plot_fun = plot_fun, class = "plot_data")
@@ -1098,110 +1096,6 @@ function(data){
 	for(s in 1:nrow(sibling_list))
 		siblingpair_list<- rbind(siblingpair_list,t(sibling_list[s,!is.na(sibling_list[s,])][2:3]))
 	return(list(data=data[siblingpair_list,],model=NULL,tfun="sibpairs"))
-}
-
-`stability_assessment` <-
-function(
-     data               = na.omit(as.data.frame(df))
-   , canalysis_variables  = NULL
-   , sumscore_groups    = NULL
-   , stats_fun          = NULL
-   , fun_transform      = list(
-           center       = transform_AVG
-         , scale        = transform_SIGMA)   
-   , G_set              = 1:9
-   , query_model        = "VVI,5"
-   , modelNames         = c("EII","VII","EEI","EVI","VEI","VVI","EEE","EEV","VEV","VVV")
-   , noise_vector       = (1/2^(1:10))
-   , K                  = 10
-   , filePrefix         = NULL 
-   ){
-   #
-   canalysis_results               <- list()
-   for(adj in names(adj_params)){
-      canalysis_results[[adj]]     <- list()
-      for(noise_idx in 1:length(noise_vector)){
-         canalysis_results[[adj]][[noise_idx]] <- list()
-         # ADD A NOISE FUNCTION TO THE LIST OF DATA TRANSFORMATIONS
-         fun_transform_set      <- adj_params[[adj]]$transform
-         mat_formula            <- adj_params[[adj]]$formula_matrix
-         fun_transform[["time_adj"]] <-  function(data, model = NULL, type  = "lm"){ return(
-                                                transform_adjust(data, model, type, f_matrix = mat_formula, transform=fun_transform_set))}
-         fun_transform[["center"]]<- transform_AVG
-         fun_transform[["scale"]] <- transform_SIGMA
-         fun_transform[["noise"]] <- function(data, model= NULL, type="addnoise"){return(
-                                                transform_addnoise(data, model, canalysis_variables = canalysis_variables, type, 
-                                                relative_noise_amount = noise_vector[noise_idx], rand_seed = 6013+3*i))}
-         filePrefix_local <- paste2(filePrefix,noise_vector[noise_idx],"_",adj,"_")
-         # PROCEED TO CLUSTER ANALYSIS 10 TIMES WITH A DIFFERENT SEED
-         for(i in 1:10)
-            canalysis_results[[adj]][[noise_idx]][[i]] <- analysis(
-                                                              data                   = data
-                                                            , canalysis_variables      = canalysis_variables 
-                                                            , sumscore_groups        = sumscore_groups
-                                                            , stats_fun              = stats_fun
-                                                            , fun_transform          = fun_transform
-                                                            , G_set                  = G_set
-                                                            , K                      = K
-                                                            , filePrefix             = filePrefix_local )
-         # PROCEED TO CORRELATION EVALUATION
-         b <- list(auuc=c(),cramerv=c())
-         for(i in 1:10){
-            for(j in 1:10){
-               if(j > i){
-                  a <- compare_canalysis(
-                           canalysis_results[[adj]][[noise_idx]][[i]],
-                           canalysis_results[[adj]][[noise_idx]][[j]], 
-                           query=query_model, filePrefix=NULL)
-                  if(length(a) > 0){
-                     a <- a[[1]]
-                     b[["cramerv"]] <- c(b[["cramerv"]],a["Cramer's V",1])
-                  }
-               }
-            }
-         }
-         # PRESERVE THE RESULT
-         canalysis_results[[adj]][[noise_idx]][["result"]] <- b
-         canalysis_results[[adj]][[noise_idx]][["result"]][["mean_cramerv"]] <- mean(as.numeric(b[["cramerv"]]),na.rm=TRUE)
-         canalysis_results[[adj]][[noise_idx]][["result"]][["sd_cramerv"]] <- sd(as.numeric(b[["cramerv"]]),na.rm=TRUE)
-      }
-   }
-   #
-   # QUANTILE'S DATA FRAME
-   #
-   # DF
-   quantile_df <- matrix(NA,length(noise_vector),11,dimnames=list(100*noise_vector,c("0%","10%","20%","30%","40%","50%","60%","70%","80%","90%","100%")))
-   # ARRAY
-   quantile_a <- quantile_df
-   for(adj in 2:length(adj_params))
-      quantile_a <- abind(quantile_a,quantile_df,along=3)
-   dimnames(quantile_a)[[3]] <- names(adj_params)
-   # FILL ARRAY VALUES 
-   for(adj in names(adj_params))
-      for(noise_idx in 1:length(noise_vector))
-         quantile_a[noise_idx,,adj] <- quantile(as.numeric(canalysis_results[[adj]][[noise_idx]][["result"]]$cramerv),probs=seq(0,1,0.1))
-   #
-   ncolors <- 9
-   local_breaks <- seq(min(quantile_a),max(quantile_a),(max(quantile_a)-min(quantile_a))/ncolors)
-   local_colors <- brewer.pal(ncolors,"Greys")
-   postscript(file=paste2(filePrefix,"_stability.ps"),horizontal=FALSE,paper="a4",pagecentre=TRUE)
-   par(mfrow=c(2,2))
-   for(adj in names(adj_params)){
-      image(quantile_a[,,adj],col=local_colors,breaks=local_breaks,axes=FALSE,ylab=adj,cex.lab=1.7)
-      contour(quantile_a[,,adj],add=TRUE,labcex=1.3)
-      axis(1,at=seq(0,1,0.11),labels=sprintf("%.1f%%",as.numeric(row.names(quantile_a))),las=2,cex.axis=1.7)
-      axis(2,at=seq(0,1,0.1),labels=colnames(quantile_a),cex.axis=1.7)
-      }
-   graphics.off()
-   return(list(canalysis=canalysis_results,quantile_a))
-}
-
-`statistical_patterns` <-
-function(data,fun_list=list(avg=mean,median=median)){
-   data_out <- list()
-   for(fun in names(fun_list))
-      data_out[[fun]] <- compute_plot_data(data,fun=fun_list[[fun]])
-   return(data_out)
 }
 
 `statistics_lambdasibs` <-
@@ -1297,56 +1191,6 @@ function(data,class,fun_midthreshold=median){
    return(list(out=s))
 }
 
-`stratified_cv` <-
-function(data,K=10){
-   indexes <- list()
-   G <- length(table(data$class))
-   g <- as.numeric(names(sort(table(data$class))[1]))
-   row_number <- nrow(data[data$class == g,])
-   out_cv <- stratified_cv_folds(row_number,K=K,g)
-   while(is.null(out_cv)){
-      K <- K-1
-      print(K)
-      out_cv <- stratified_cv_folds(row_number,K=K,g)
-   }
-   for(g in 1:G)
-      indexes[[g]] <- stratified_cv_folds(row_number,K,g)
-   return(list(indexes=indexes,K=K))
-}
-
-`stratified_cv_folds` <-
-function(n, K, G) 
-{
-   set.seed(6013)
-   # WE DO A ROTATION ON THE ROWS OF THE FINAL FOLD MATRIX FOR NOT HAVING
-   # ALWAYS THE SAME FOLD-STRATAS WITH ONE-LESS COUNT, I.E. THE ONE FOLDS AT
-   # THE END OF THE MATRIX, 
-   if(G == K) 
-      G <- 1
-   rowPermutation <- c(((G %% K)+1):K,1:(G %% K))
-   # 
-   size <- n/K
-   cv <- matrix(0, K, ceiling(size))
-   if (size < 5 & size != 1){
-      print("The number of folds is too large for the data size")
-      return(NULL)
-   }
-   if (size == 1) 
-      return(matrix(1:n, nrow = n))
-   size.int <- floor(size)
-   size.vector <- rep(size.int, K)
-   if (size.int != size) 
-      size.vector[1:((size - size.int) * K)] <- size.vector[1:((size - size.int) * K)] + 1
-   group.index <- c()
-   for (j in 1:K) 
-      group.index <- c(group.index, rep(j, size.vector[j]))
-   group.index <- group.index[sample(n, n, replace = FALSE)]
-   for (j in 1:K) {
-      whichj <- which(group.index == j)
-      cv[j, 1:length(whichj)] <- whichj
-   }
-   return(cv[rowPermutation,])
-}
 
 `stratified_traintest_split` <-
 function(data,K=10,perc=0.7){
@@ -1453,7 +1297,7 @@ function(){
 `transform_ABSMAX` <-
 function(data,tdata){
    vdata        <- data[,attr(tdata,"var")]
-   tfun         <- list(function(x){return(max(abs(x,na.rm=TRUE),na.rm=TRUE))}
+   tfun         <- list(function(x){return(max(abs(x),na.rm=TRUE))}
                       , function(x){return(do.call('/',x))})
    return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
 }
@@ -1525,40 +1369,6 @@ function(data,tdata){
    return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
 }
 
-`transform_addnoise` <-
-function(
-        data,
-        model=NULL,
-        canalysis_variables = NULL,
-        tfun="addnoise",
-        relative_noise_amount = 0.01,
-        rand_seed = 6013
-        )
-{
-   if(is.null(model)){
-      for(o in which(canalysis_variables %in% colnames(data))){
-         local_name             <- colnames(data)[o]
-         local_rand_seed        <- rand_seed+o
-         set.seed(local_rand_seed)
-         local_rand_vector      <- data.frame(rnorm(    length(data[,o])
-                                                        , mean = mean(data[,o])
-                                                        , sd = relative_noise_amount * sd(data[,o])
-                                                   )
-                                             , row.names = row.names(data))
-         colnames(local_rand_vector) <- "values"
-         model[[local_name]]    <- list(  rand_seed = local_rand_seed
-                                        , rand_vector = local_rand_vector
-                                        , relative_noise_amount = relative_noise_amount)
-         # (EXPECT NO NA'S WHILE SUMMING BECAUSE "0.54345<-NA+0.54345"...)
-         data[,o] <- data[,o] + local_rand_vector[,1]
-      }
-   }
-   else{
-      for(o in colnames(data))
-         data[,o] <- data[,o] + model[[o]][["rand_vector"]][row.names(data),]
-   }
-   return(list(data=data,tfun=tfun,model=model))
-}
 
 `transform_adjust` <-
 function(data, tdata, tformula){
@@ -1615,23 +1425,6 @@ function(data,settings){
    return(list(data=data,tdata=tdata_out))
 }
 
-`transform_longitudinal` <-
-function(data, fun, canalysis_variables = parkinson_canalysis_variables,effect="duration"){
-   data_out             <- data
-   m                    <- fun(as.data.frame(data[,c(canalysis_variables,effect),1]))
-   m_effect             <- 
-   data_out[row.names(m[["data"]]),colnames(m[["data"]]),1]     <- data.matrix(m[["data"]])
-   for(i in 2:dim(data)[[3]]){
-      # WE WANT TO REMOVE THE EFFECT OF DISEASE DURATION (AKA THE TIME) FOR BASELINE,
-      # BUT WE PRESERVE THE TIME EFFECT IN THE LONGITUDINAL ANALYSIS. 
-      data_tmp          <- as.data.frame(cbind(data[,canalysis_variables,i],data[,effect,1]))
-      colnames(data_tmp)[ncol(data_tmp)] <- effect 
-      m_tmp          <- fun(data_tmp,model = m[["model"]])
-      data_out[row.names(m_tmp[["data"]]),canalysis_variables,i]  <- data.matrix(m_tmp[["data"]])[,canalysis_variables]
-      }
-   return(data_out)
-}
-
 `transform_sibordering` <-
 function(data){
    for(f in unique(data$family)){
@@ -1645,7 +1438,7 @@ function(data){
 }
 
 `variable_graphic_histograms` <-
-function(data, which_data = NULL ,prefix=NULL){
+function(data, which_data = NULL ){
    # GET CANALYSIS DATA
    ldata        <- get_canalysis_data(data, which_data = which_data)
    ldata        <- as.data.frame(ldata)
@@ -1702,13 +1495,12 @@ function(data,which_data=NULL,prefix=NULL){
       ldata     <- as.data.frame(ldata[1:nrow(ldata),])
       cor_mat   <- cor(ldata,use="pairwise.complete.obs")
       write.table(cor_mat,file=paste2(prefix,"Correlation_Matrix.csv"),dec=",",sep=";")
-      hclust(as.dist(abs(cor_mat)))
       # BOXPLOTS SUMMARY DITRIBUTIONAL SHAPE OF THE OUTCOMES BY THEIR BOX PLOTS
       # 1ST AND 3RD QUARTILES, MEDIAN, 95% BOUNDS, + EXTREMES BEYOND THE 95%
       par(mfrow=c(1,1),'mai'=c(1.2,0.7,0.7,0.7),new=FALSE)
       boxplot(ldata,'las'=2,main=paste2(prefix,"Boxplot"))
       # PLOT HISTOGRAMS FOR EACH VARIABLE
-      variable_graphic_histograms(data,which_data,prefix=prefix)
+      variable_graphic_histograms(data,which_data)
    }
 }
 

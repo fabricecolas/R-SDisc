@@ -15,7 +15,7 @@ The function outputs a transformed vector but also, for reproducibility on new
 data, a \code{tdata} structure which stores the transformation properties. So,
 when a non-null \code{tdata} structure is provided, the function transforms
 \code{var} with respect to the value defined in \code{tdata}.  }
-\usage{ transform_ALL(data, 
+\usage{ transform_ALL(data 
         , tfun = list(  function(x) { return(0) }, 
                         function(x){ return(do.call("+", x)) })
         , tdata) }
@@ -37,6 +37,6 @@ when a non-null \code{tdata} structure is provided, the function transforms
 \references{ }
 \author{ Fabrice Colas }
 \note{ }
-\seealso{ \code{\link{transform_ABSMAX}}, \code{\link{transform_ALL}}, \code{\link{transform_AVG}}, \code{\link{transform_L1}}, \code{\link{transform_MAX}}, \code{\link{transform_MEDIAN}}, \code{\link{transform_MIN}}, \code{\link{transform_SIGMA}}, \code{\link{transform_addnoise}}, \code{\link{transform_adjust}}, \code{\link{transform_canalysis_data}}, \code{\link{transform_sibordering}}}
+\seealso{ \code{\link{transform_ABSMAX}}, \code{\link{transform_ALL}}, \code{\link{transform_AVG}}, \code{\link{transform_L1}}, \code{\link{transform_MAX}}, \code{\link{transform_MEDIAN}}, \code{\link{transform_MIN}}, \code{\link{transform_SIGMA}}, \code{\link{transform_adjust}}, \code{\link{transform_canalysis_data}}, \code{\link{transform_sibordering}}}
 \examples{ }
-% \keyword{ ~kwd1 }
+%\keyword{ ~kwd1 }

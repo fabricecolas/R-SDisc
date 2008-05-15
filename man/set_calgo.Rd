@@ -1,38 +1,19 @@
 \name{set_calgo}
 \alias{set_calgo}
-%- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
-\description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
-}
-\usage{
-set_calgo(calgo = "model_based_clustering", args = list(G_set = 1:9, model_names = c("EII", "VII", "EEI", "VEI", "EVI", "VVI", "EEE", "EEV", "VEV", "VVV")))
-}
-%- maybe also 'usage' for other objects documented here.
+\title{ Prepare a generic 'cluster alorigthm' function object}
+\description{ This function prepares a cluster algorithm function call. The
+subsequent execution of the function needs two arguments of type
+\code{canalysis_data} and \code{canalysis_config}.}
+\usage{ set_calgo(calgo = "model_based_clustering", args = list(G_set = 1:9,
+model_names = c("EII", "VII", "EEI", "VEI", "EVI", "VVI", "EEE", "EEV", "VEV",
+"VVV"))) }
 \arguments{
-  \item{calgo}{ ~~Describe \code{calgo} here~~ }
-  \item{args}{ ~~Describe \code{args} here~~ }
+  \item{calgo}{ A character string naming the function to call for execution,}
+  \item{args}{ A list of arguments that will be passed to this
+  function in addition to the data.}
 }
-\details{
-  
-}
-\value{
-  ~Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
-}
-\references{ }
 \author{ Fabrice Colas }
-\note{ ~~further notes~~ 
-
- ~Make other sections like Warning with \section{Warning }{....} ~
-}
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
-}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
+\seealso{ \code{\link{set_calgo}}, \code{\link{set_canalysis_config}},
+\code{\link{set_canalysis_data}}, \code{\link{set_canalysis_result}},
+\code{\link{set_plot_data}}, \code{\link{set_tdata}} }
+%\keyword{ ~kwd1 }

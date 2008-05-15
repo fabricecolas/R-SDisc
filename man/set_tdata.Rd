@@ -6,12 +6,13 @@
   ~~ A concise (1-5 lines) description of what the function does. ~~
 }
 \usage{
-set_tdata(testimate = NULL, tfun = NULL)
+set_tdata(testimate = NULL, tfun = NULL, var = NULL)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{testimate}{ ~~Describe \code{testimate} here~~ }
   \item{tfun}{ ~~Describe \code{tfun} here~~ }
+  \item{var}{ ~~Describe \code{tfun} here~~ }
 }
 \details{
   
@@ -34,5 +35,5 @@ set_tdata(testimate = NULL, tfun = NULL)
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
+%\keyword{ ~kwd1 }
+% __ONLY ONE__ keyword per line

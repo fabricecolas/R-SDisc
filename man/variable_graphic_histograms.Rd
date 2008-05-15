@@ -1,39 +1,20 @@
 \name{variable_graphic_histograms}
 \alias{variable_graphic_histograms}
-%- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
-\description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
-}
-\usage{
-variable_graphic_histograms(data, which_data = NULL, prefix = NULL)
-}
-%- maybe also 'usage' for other objects documented here.
+\title{Plot the histograms for each variables of a data set}
+\description{ Function that returns histogram plots for each variables of a
+data set. When available in the \code{canalysis_data} structure, it eventually
+overload the histograms with additional information on the transformation such
+as the variable empirical mean, its standard deviation or the formula for the
+adjustment.  }
+\usage{ variable_graphic_histograms(data, which_data = NULL) }
 \arguments{
-  \item{data}{ ~~Describe \code{data} here~~ }
-  \item{which_data}{ ~~Describe \code{which_data} here~~ }
-  \item{prefix}{ ~~Describe \code{prefix} here~~ }
+  \item{data}{ A data set of type \code{canalysis_data},}
+  \item{which_data}{ If null, take the transformed data, otherwise take the
+  original data of \code{canalysis_data}}
 }
-\details{
-  
-}
-\value{
-  ~Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
-}
+\details{ The plotting outputs its graphics on the current device.  }
 \references{ }
 \author{ Fabrice Colas }
-\note{ ~~further notes~~ 
-
- ~Make other sections like Warning with \section{Warning }{....} ~
-}
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
-}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
+\seealso{ \code{\link{variable_graphic_report}},\code{\link{variable_graphic_histograms}}}
+\examples{ }
+% __ONLY ONE__ keyword per line

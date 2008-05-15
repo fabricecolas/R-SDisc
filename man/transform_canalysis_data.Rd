@@ -27,8 +27,8 @@ as defined in settings, and this for each variable.  }
 \code{\link{transform_ALL}}, \code{\link{transform_AVG}},
 \code{\link{transform_L1}}, \code{\link{transform_MAX}},
 \code{\link{transform_MEDIAN}}, \code{\link{transform_MIN}},
-\code{\link{transform_SIGMA}}, \code{\link{transform_addnoise}},
+\code{\link{transform_SIGMA}}, 
 \code{\link{transform_adjust}}, \code{\link{transform_canalysis_data}},
 \code{\link{transform_sibordering}}}
 \examples{ }
-% \keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
+% __ONLY ONE__ keyword per line

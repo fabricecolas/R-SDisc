@@ -37,5 +37,5 @@ model_based_clustering(data, config, G_set, model_names = c("EII", "VII", "EEI",
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
+%\keyword{ ~kwd1 }
+% __ONLY ONE__ keyword per line

@@ -38,5 +38,5 @@ plot_parcoord(pattern, T_s, color_sel, lty = "full", lwd = 3, title_prefix = NUL
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
+%\keyword{ ~kwd1 }
+% __ONLY ONE__ keyword per line

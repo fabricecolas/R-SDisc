@@ -1,43 +1,32 @@
 \name{model_knn}
 \alias{model_knn}
-%- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
-\description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
-}
-\usage{
-model_knn(formula, trainset, testset, k = 1, l = 0, prob = FALSE, use.all = TRUE)
-}
-%- maybe also 'usage' for other objects documented here.
-\arguments{
-  \item{formula}{ ~~Describe \code{formula} here~~ }
-  \item{trainset}{ ~~Describe \code{trainset} here~~ }
-  \item{testset}{ ~~Describe \code{testset} here~~ }
-  \item{k}{ ~~Describe \code{k} here~~ }
-  \item{l}{ ~~Describe \code{l} here~~ }
-  \item{prob}{ ~~Describe \code{prob} here~~ }
-  \item{use.all}{ ~~Describe \code{use.all} here~~ }
-}
-\details{
-  
-}
-\value{
-  ~Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
-}
-\references{ }
-\author{ Fabrice Colas }
-\note{ ~~further notes~~ 
+\title{ Returns a k-NN prediction (model) given a training and test set}
+\description{ Returns a k-NN prediction (model) given a training and test set. 
 
- ~Make other sections like Warning with \section{Warning }{....} ~
+Used as a generic interface to the different machine learning algorithms.}
+\usage{ model_knn(formula, trainset, testset, k = 1, l = 0, prob = FALSE,
+use.all = TRUE) }
+\arguments{
+  \item{formula}{ unused,}
+  \item{trainset}{ the set of observations used for training, }
+  \item{testset}{ the set of observations used for testing, }
+  \item{k}{ the number \code{k} of nearest neighbours, }
+  \item{l}{ the minimum number of votes for definite decision, }
+  \item{prob}{ if true, then the proportion of the votes for the winning class
+  are returned as attribute 'prob',}
+  \item{use.all}{ controls handling of ties. If true, all distances equal to
+  the 'k'th largest are included. If false, a random selection of distances
+  equal to the 'k'th is chosen to use exactly 'k' neighbours.}
 }
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
-}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-%\keyword{ ~kwd1 }
-% __ONLY ONE__ keyword per line
+\seealso{
+\code{\link{model_knn}},
+\code{\link{model_naive_bayes}},
+\code{\link{model_svm}},
+\code{\link{predict_knn}},
+\code{\link{predict_naive_bayes}},
+\code{\link{predict_svm}},
+\code{\link[e1071:e1071-package]{knn}},
+\code{\link[e1071:e1071-package]{naiveBayes}}, 
+\code{\link[e1071:e1071-package]{svm}}}
+\author{ Fabrice Colas }
+\keyword{}

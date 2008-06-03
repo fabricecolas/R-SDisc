@@ -1,39 +1,18 @@
 \name{stratified_traintest_split}
 \alias{stratified_traintest_split}
-%- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
-\description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
-}
-\usage{
-stratified_traintest_split(data, K = 10, perc = 0.7)
-}
-%- maybe also 'usage' for other objects documented here.
+\title{Returns a list of index vectors with training/test split}
+\description{ Stratified training test sampling to train machine learning
+classification algorithms. The sampling strategy preserves in each single
+training/test set the cluster membership proportion. Therefore, we discard from
+the observed variability, the uncertainty associated to the cluster memberships
+proportions.}
+\usage{ stratified_traintest_split(data, K = 10, perc = 0.7, rseed = 6013) }
 \arguments{
-  \item{data}{ ~~Describe \code{data} here~~ }
-  \item{K}{ ~~Describe \code{K} here~~ }
-  \item{perc}{ ~~Describe \code{perc} here~~ }
+  \item{data}{ A data matrix, }
+  \item{K}{ Number of random draws, }
+  \item{perc}{ The percentage of observation in the training set (\code{perc})
+      and in the test set (\code{perc}), }
+  \item{rseed}{ For reproducibility of the result, we set he random seed.}
 }
-\details{
-  
-}
-\value{
-  ~Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
-}
-\references{ }
 \author{ Fabrice Colas }
-\note{ ~~further notes~~ 
-
- ~Make other sections like Warning with \section{Warning }{....} ~
-}
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
-}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-%\keyword{ ~kwd1 }
-% __ONLY ONE__ keyword per line
+\keyword{}

@@ -1,39 +1,17 @@
 \name{set_tdata}
 \alias{set_tdata}
-%- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
-\description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
-}
-\usage{
-set_tdata(testimate = NULL, tfun = NULL, var = NULL)
-}
-%- maybe also 'usage' for other objects documented here.
+\title{ Prepare a transform data object}
+\description{ This function returns a data structure (\code{tdata}) which
+stores the parameters of a particular transform. So, given new data, we use
+this information to transform them according to previously estimated transform
+parameters.  }
+\usage{ set_tdata(testimate = NULL, var = NULL) }
 \arguments{
-  \item{testimate}{ ~~Describe \code{testimate} here~~ }
-  \item{tfun}{ ~~Describe \code{tfun} here~~ }
-  \item{var}{ ~~Describe \code{tfun} here~~ }
+  \item{testimate}{ The transformation estimate(s),}
+  \item{var}{ The variable which should be transformed. It is especially used
+  with \code{transform_adjust}.}
 }
-\details{
-  
-}
-\value{
-  ~Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
-}
-\references{ }
+\value{ Returns a \code{tdata} structure.}
 \author{ Fabrice Colas }
-\note{ ~~further notes~~ 
-
- ~Make other sections like Warning with \section{Warning }{....} ~
-}
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
-}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-%\keyword{ ~kwd1 }
-% __ONLY ONE__ keyword per line
+\seealso{ \code{\link{set_canalysis_data}}, \code{\link{set_cresult}}, }
+\keyword{}

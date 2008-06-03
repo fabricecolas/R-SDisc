@@ -1,42 +1,24 @@
 \name{plot_parcoord}
 \alias{plot_parcoord}
-%- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
-\description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
-}
-\usage{
-plot_parcoord(pattern, T_s, color_sel, lty = "full", lwd = 3, title_prefix = NULL)
-}
-%- maybe also 'usage' for other objects documented here.
+\title{ Unexecuted plotting function for a parallel coordinate sub plot}
+\description{ This function returns a function that can do a parallel
+coordinates sub plot upon its execution.  The pattern to plot is passed as its
+only necessary argument whereas the others are pre-set. The pre-sets are those
+of \code{canalysis_config}.  }
+\usage{ plot_parcoord(xlim = c(-3,3) , cex = NULL , title = NULL , T_s = NULL ,
+pattern = NULL) }
 \arguments{
-  \item{pattern}{ ~~Describe \code{pattern} here~~ }
-  \item{T_s}{ ~~Describe \code{T_s} here~~ }
-  \item{color_sel}{ ~~Describe \code{color_sel} here~~ }
-  \item{lty}{ ~~Describe \code{lty} here~~ }
-  \item{lwd}{ ~~Describe \code{lwd} here~~ }
-  \item{title_prefix}{ ~~Describe \code{title_prefix} here~~ }
+   \item{xlim}{Axis limit in x with default values to \code{c(-3,3)},}
+   \item{cex}{A character expension factor for the test, with default values set
+   to \code{0.9}}
+   \item{title}{A character string for the title of the sub plot,}
+   \item{T_s}{A setting matrix which defines in particular the y-axis coordinates
+   and the group of variables in each subplot \code{visu_ycoord, visu_groups},}
+   \item{pattern}{ A character vector defining the different patterns to plot,
+   see \code{fun_pattern} in \code{set_cresult},}
 }
-\details{
-  
-}
-\value{
-  ~Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
-}
-\references{ }
-\author{ Fabrice Colas }
-\note{ ~~further notes~~ 
 
- ~Make other sections like Warning with \section{Warning }{....} ~
-}
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
-}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-%\keyword{ ~kwd1 }
-% __ONLY ONE__ keyword per line
+\value{ Returns a function able to do a parallel coordinates plot when called.  }
+\author{ Fabrice Colas }
+\seealso{ \code{\link{set_cresult}}, \code{\link{get_plot_fun}}}
+\keyword{}

@@ -1,38 +1,16 @@
 \name{get_canalysis_data}
 \alias{get_canalysis_data}
-%- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
-\description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
-}
-\usage{
-get_canalysis_data(data, which_data = NULL)
-}
-%- maybe also 'usage' for other objects documented here.
+\title{ Returns the data matrix for the cluster analysis}
+\description{ Given a data set appropriately transformed of type
+\code{canalysis_data}, this function returns the data matrix for use in a
+cluster analysis.  }
+\usage{ get_canalysis_data(data, which_data = NULL) }
 \arguments{
-  \item{data}{ ~~Describe \code{data} here~~ }
-  \item{which_data}{ ~~Describe \code{which_data} here~~ }
+  \item{data}{ A data set of type \code{canalysis_data} as prepared by \code{set_canalysis_data},}
+  \item{which_data}{ A character element with values NULL or \code{data_o}.}
 }
-\details{
-  
-}
-\value{
-  ~Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
-}
-\references{ }
+\value{ A data matrix that we restrict to the set of variables involved in the
+cluster analysis.  }
 \author{ Fabrice Colas }
-\note{ ~~further notes~~ 
-
- ~Make other sections like Warning with \section{Warning }{....} ~
-}
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
-}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-%\keyword{ ~kwd1 }
-% __ONLY ONE__ keyword per line
+\seealso{ \code{\link{get_canalysis_variables}}, \code{\link{set_canalysis_data}}}
+\keyword{}

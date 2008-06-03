@@ -1,38 +1,22 @@
 \name{predict_naive_bayes}
 \alias{predict_naive_bayes}
-%- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
-\description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
-}
-\usage{
-predict_naive_bayes(model, testset)
-}
-%- maybe also 'usage' for other objects documented here.
+\title{ Returns a naive Bayes prediction given a model}
+\description{ Returns a naive Bayes prediction given a \code{model}.  }
+\usage{ predict_naive_bayes(model, testset) }
 \arguments{
-  \item{model}{ ~~Describe \code{model} here~~ }
-  \item{testset}{ ~~Describe \code{testset} here~~ }
+  \item{model}{ The training set referred to as \code{model},}
+  \item{testset}{ The set of examples to classify referred to as the
+  \code{testset}.}
 }
-\details{
-  
-}
-\value{
-  ~Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
-}
-\references{ }
+\seealso{
+\code{\link{model_knn}},
+\code{\link{model_naive_bayes}},
+\code{\link{model_svm}},
+\code{\link{predict_knn}},
+\code{\link{predict_naive_bayes}},
+\code{\link{predict_svm}},
+\code{\link[e1071:e1071-package]{knn}},
+\code{\link[e1071:e1071-package]{naiveBayes}}, 
+\code{\link[e1071:e1071-package]{svm}}}
 \author{ Fabrice Colas }
-\note{ ~~further notes~~ 
-
- ~Make other sections like Warning with \section{Warning }{....} ~
-}
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
-}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-%\keyword{ ~kwd1 }
-% __ONLY ONE__ keyword per line
+\keyword{}

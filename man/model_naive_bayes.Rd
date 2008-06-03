@@ -1,40 +1,25 @@
 \name{model_naive_bayes}
 \alias{model_naive_bayes}
-%- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
-\description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
-}
-\usage{
-model_naive_bayes(formula, trainset, testset, laplace = 1)
-}
-%- maybe also 'usage' for other objects documented here.
-\arguments{
-  \item{formula}{ ~~Describe \code{formula} here~~ }
-  \item{trainset}{ ~~Describe \code{trainset} here~~ }
-  \item{testset}{ ~~Describe \code{testset} here~~ }
-  \item{laplace}{ ~~Describe \code{laplace} here~~ }
-}
-\details{
-  
-}
-\value{
-  ~Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
-}
-\references{ }
-\author{ Fabrice Colas }
-\note{ ~~further notes~~ 
+\title{ Returns a naive Bayes model given a training set}
+\description{ Returns a naive Bayes model given a training set. 
 
- ~Make other sections like Warning with \section{Warning }{....} ~
+Used as a generic interface to the different machine learning algorithms.}
+\usage{ model_naive_bayes(formula, trainset, testset, laplace = 1) }
+\arguments{
+  \item{formula}{ the formula for the training of the classifier, }
+  \item{trainset}{ the data considered as trainset, }
+  \item{testset}{ unused,}
+  \item{laplace}{ positive double controlling Laplace smoothing}
 }
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
-}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-%\keyword{ ~kwd1 }
-% __ONLY ONE__ keyword per line
+\seealso{
+\code{\link{model_knn}},
+\code{\link{model_naive_bayes}},
+\code{\link{model_svm}},
+\code{\link{predict_knn}},
+\code{\link{predict_naive_bayes}},
+\code{\link{predict_svm}},
+\code{\link[e1071:e1071-package]{knn}},
+\code{\link[e1071:e1071-package]{naiveBayes}}, 
+\code{\link[e1071:e1071-package]{svm}}}
+\author{ Fabrice Colas }
+\keyword{}

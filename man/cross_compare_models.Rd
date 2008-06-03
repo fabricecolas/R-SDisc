@@ -1,38 +1,18 @@
 \name{cross_compare_models}
 \alias{cross_compare_models}
-%- Also NEED an '\alias' for EACH other topic documented here.
-\title{ ~~function to do ... ~~ }
-\description{
-  ~~ A concise (1-5 lines) description of what the function does. ~~
-}
-\usage{
-cross_compare_models(model1, model2)
-}
-%- maybe also 'usage' for other objects documented here.
+\title{Cross compare two models}
+\description{ This function takes two cluster models (\code{cmodel}) as
+argument and compare them. The comparison reports the joint distribution of the
+two labellings (confusion table), the level of agreement between them in terms
+of the Cramer's V measure ($\chi^2$-based) but it also reports measures of
+characterization (e.g log of the odds) and evaluation of the different clusters
+(e.g. lambda sibs, test of goodness of fit).  }
+\usage{ cross_compare_models(x, y) }
 \arguments{
-  \item{model1}{ ~~Describe \code{model1} here~~ }
-  \item{model2}{ ~~Describe \code{model2} here~~ }
+  \item{x}{ A cluster result of type \code{cmodel},}
+  \item{y}{ A cluster result of type \code{cmodel}.}
 }
-\details{
-  
-}
-\value{
-  ~Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
-  ...
-}
-\references{ }
+\value{ Returns a character matrix with the measurements.  }
 \author{ Fabrice Colas }
-\note{ ~~further notes~~ 
-
- ~Make other sections like Warning with \section{Warning }{....} ~
-}
-\seealso{ ~~objects to See Also as \code{\link{help}}, ~~~ }
-\examples{
-}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-%\keyword{ ~kwd1 }
-% __ONLY ONE__ keyword per line
+\seealso{\code{\link{compare_cresult}}}
+\keyword{}

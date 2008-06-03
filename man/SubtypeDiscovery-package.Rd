@@ -3,37 +3,34 @@
 \alias{SubtypeDiscovery}
 \docType{package}
 \title{Methods for Characterization, Comparison and Evaluation of Cluster
-Models for Medical Research }
-\description{
-To compare cluster results while varying the data transformation settings or
-the cluster algorithm parameters, we compute graphic- (PS) and tabular- (CSV)
-reports of the essential cluster result's characteristics. We also provide
-methods to cross-compare results and to evaluate the clustering stability. 
-
-We also define complex data structures in order to compare the result of
-different (1) variable transformations, to abstract on the cluster analysis (2)
-settings, and to abstract on (3) clustering algorithms.
-
-We also include two methods to evaluate the clinical relevance of clusters in a
-sibling pair study (familial aggregation).
-}
+Models}
+\description{ We aim to identify subtypes of diseases that present clinical
+heterogeneity. We do so by  searching for homogeneous clusters  in values of
+markers that reflect the severity of the disease.  As we cluster data by models
+that use different  spatial-shapes, we  need a method that, first, reports the
+essential characteristics of each cluster result and second, that offers a
+comparative view between cluster results. On top of that, as we analyse data
+from medical research, we also consider the clinical relevance of the clusters
+as an important feature. Therefore, in the current package, we consider three
+important items. First, how do we \emph{characterize} efficiently different
+clusters of a cluster result? Second, how do we \emph{compare}  different
+cluster results? And third, how do we \emph{evaluate} clusters for their
+clinical relevance?  We answer these  questions, by creating  visual-aids and
+table-charts that show the  characteristics of  clusters and models under these
+different views.  }
 \details{
 \tabular{ll}{
 Package: \tab SubtypeDiscovery\cr
 Type: \tab Package\cr
-Version: \tab 1.6\cr
-Date: \tab 2008-05-08\cr
+Version: \tab 1.8\cr
+Date: \tab 2008-05-23\cr
 License: \tab To be defined. All rigths reserved.\cr
 }
 
-
-
 }
-\author{
-Fabrice Colas
+\author{ Fabrice Colas
 
-Responsable : Fabrice Colas <fcolas@liacs.nl>
-}
+Responsable : Fabrice Colas <fcolas@liacs.nl> }
 \references{
 Hastie, T., Tibshirani, R., Friedman, J.: The Elements of Statistical Learning,
 Data Mining, Inference, and Prediction. Springer Series in Statistics. Springer
@@ -104,97 +101,4 @@ Springer Series in Statistics for Biology and Health. Springer (2005)
 \code{\link[mclust:mclust-package]{mclust}} 
 \code{\link[RColorBrewer:RColorBrewer-package]{RColorBrewer}} 
 \code{\link[e1071:e1071-package]{e1071}} 
-}
-\examples{
-#
-# LOAD PACKAGE LIBRARY
-#
-library(SubtypeDiscovery)
-data(setup_PD_data, setup_PD_visu_params)
-# INIT 
-data_4y <- analysis_PD_result <- canalysis_data <- canalysis_config <- list()
-#
-# LOAD SPSS DATA WHERE '1' STANDS FOR THE COLUMN WITH THE ROW NAMES (IDAA)
-#
-data_4y[["y1"]] <- read.delim('./data/2008-05-06_PD_data_scopayear1_n397.data', row.name=1)
-data_4y[["y2"]] <- read.delim('./data/2008-05-06_PD_data_scopayear2_n346.data', row.name=1)
-data_4y[["y3"]] <- read.delim('./data/2008-05-06_PD_data_scopayear3_n332.data', row.name=1)
-data_4y[["y4"]] <- read.delim('./data/2008-05-06_PD_data_scopayear4_n280.data', row.name=1)
-for(y in names(data_4y)){
-# 
-# NORMALIZE THE NAMING FOR ALL THE VARIABLES 
-#
-colnames(data_4y[[y]])       <- tolower(colnames(data_4y[[y]]))
-data_4y[[y]]                 <- data_4y[[y]][,sort(colnames(data_4y[[y]]))]
-}  
-#
-# SETUP PD DATA IS A MATRIX THAT DEFINES THE INDIVIDUAL VARIABLE
-# TRANSFORMATIONS, PLOT COORDINATES
-#
-setup_PD_data[c("spesfreezing","spesaxial2"),"in_canalysis"] <- "FALSE"
-for(y in names(data_4y)){
-   #
-   # SET THE DATA FOR EACH YEAR: INIT AND TRANSFORM DATA
-   #
-   #  data      := ORIGINAL DATA __MATRIX__ WITH ALL MEASUREMENTS, EVEN THOSE
-   #            NOT INVOLVED IN THE CANALYSIS
-   #  settings  := THE CSV-EXCEL FILE DEFINING THE VAR TRANSFORM, THE VAR FOR
-   #            THE CANALYSIS, ETC. 
-   #
-   canalysis_data[[y]]  <- set_canalysis_data(
-        data            = data_4y[[y]]          
-      , settings        = setup_PD_data   
-      )
-   # 
-   # SET THE GENERAL CONFIG FOR EACH YEAR
-   # 
-   #  prefix           := A PREFIX FOR ALL THE FILES GENERATED DURING THE
-   #                   ANALYSIS  
-   #  visu_params      := ADDITIONAL GRAPHICAL PARAMETERS
-   #  stats_fun        := FUNCTIONS TO CHARACTERIZE AND EVALUTE THE CLUSTER
-   #                   RESULTS
-   #  bbox_threshold   := RELATIVE (%) LIMIT TO INVOLVE MODELS IN FURTHER
-   #                   X-COMPARISONS
-   #
-   canalysis_config[[y]] <- set_canalysis_config(
-      prefix=paste2("Parkinson_",y)        
-      , visu_params     = setup_PD_visu_params  
-      , stats_fun       = list(            
-         oddratios      =          get_stats_fun(fun_name="oddratios",fun_midthreshold=mean)
-         #,gen_naive_bayes =       get_stats_fun(fun_name="gen_naive_bayes",K=20)
-         #,gen_knn      =          get_stats_fun(fun_name="gen_knn",K=20)
-         #,gen_svm      =          get_stats_fun(fun_name="gen_svm",K=20)
-         , auuc         =          get_stats_fun(fun_name="auuc"))
-      , bbox_threshold  = 5                
-   )
-   #
-   # SET THE PARAMETERS OF THE CLUSTERING ALGORITHM
-   #
-   calgo <- set_calgo(
-      calgo = "model_based_clustering"
-      , args = list(
-         G_set = 3:6
-         , clust_fun = mclust2 
-         , model_names=c("EII", "VII","EEI","VEI","EVI","VVI","EEE","EEV","VEV","VVV") )
-   )
-   #
-   # DO THE ANALYSIS
-   #
-   analysis_PD_result[[y]] <- analysis( 
-        data    = canalysis_data[[y]]
-      , config  = canalysis_config[[y]]
-      , calgo   = calgo) 
-
-   # 
-   # SAVE ALL MODELS AND NOT ONLY THOSE 5% LESS THAN THE BEST BIC SCORE
-   #
-   for(m in analysis_PD_result[[y]][["out"]])
-      save_model(m, prefix=attr(canalysis_config[[y]],"prefix"))
-
-}
-rm(y)
-#
-# SAVE THE ?R IMAGE?
-#
-save.image()
 }

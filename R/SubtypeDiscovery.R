@@ -1,28 +1,13 @@
 `analysis` <-
-function(data, config, calgo){
-   # REDIRECT GRAPHICS -> PS
-   prefix       <- attr(config,"prefix")
-   # ------------
-   postscript(file=paste2(prefix,"_Cluster_Analysis.ps"))
-      # | VISUALIZE DISTRIB AND CORRELATION ON ORIGINAL AND TRANSFORMED DATA
-      variable_graphic_report(data, which_data = "original", prefix = prefix)
-      variable_graphic_report(data, prefix = prefix)
-      # | CLUSTERING ANALYSIS, RK 'CALGO' IS AN OBJECT WITH, AS MAIN ELEMENT, A
-      # | FUNCTION.
-      cresult           <- calgo(data, config)
-      # | VISUAL CHARACTERISTICS OF THE CLUSTERS: UPDATES CRESULT AND RETURN IT
-      cresult           <- cresult_graphic_characteristics(cresult,canalysis_data = data,canalysis_config = config)
-   graphics.off()
-   # ------------
-   # CLUSTER RESULT CHARACTERISTIZATION AND EVALUATION: UPDATES CRESULT AND
-   # RETURN IT
-   cresult              <- cresult_numeric_characteristics(cresult, data, config)
-   # COMPARE BEST CLUSTERS  2-BY-2 AND SAVE OUTPUT INTO CSV FILES
-   compare_canalysis(cresult, config=config)
+function(cresult, doPSOutput = TRUE, csv = TRUE, html = TRUE){
+   plot(attr(cresult,"cdata"), doPSOutput = doPSOutput)
+   cresult      <- fun_cmodel(cresult)
+   plot(cresult, doPSOutput = doPSOutput)
+   print(cresult,html = TRUE)
    return(cresult)
 }
 
-`area_under_uncertainty_curve` <-
+`stats_auuc` <-
 function(class){
    # AREA UNDER THE UN-CERTAINTY CURVE FOR EACH TWO MODELS
    auuc         <- mean(1-apply(class,1,max,na.rm=TRUE))
@@ -33,143 +18,72 @@ function(class){
    return(list(auuc = auuc, sd = auuc_sd, out = out))
 }
 
-`compare_canalysis` <-
-function(analysis1,analysis2=NULL,query=NULL,config){
-   prefix               <- attr(config,"prefix")
-   bbox_threshold       <- attr(config,"bbox_threshold")
-   cross_comparison_results <- model <- list()
-#   if(!is.null(analysis2) && !is.null(query)){
-#      # WE COMPARE THE RESULT OF TWO ANALYSIS FOR A GIVEN MODEL
-#      canalysis2 <- analysis2[["cluster_analysis"]]
-#      model[[1]] <- retrieve_model(canalysis1,query)
-#      model[[2]] <- retrieve_model(canalysis2,query)
-#      if(!is.null(filePrefix))
-#         filePrefix <- paste2(filePrefix,"_X_comparison_",gsub(",","_",query),".csv")
-#      if(!is.na(model[[1]][["model"]]$loglik) && !is.na(model[[2]][["model"]]$loglik))
-#         cross_comparison_results[[1]] <- cross_compare_models(model[[1]],model[[2]],fileNameCSV=filePrefix)
-#   }
-#   else{
-   # SELECT ALL 2-BY-2 COMPARISONS BETWEEN MODELS THAT ARE WITHIN THE RELATIVE
-   # 5% BBOX TO THE BEST BIC VALUE
-   vertices <- get_vertice_set(analysis1[["bic_table_relative"]], bbox_threshold)
-   if(nrow(vertices)>=1){
-      # PROCEED TO 2-BY-2 COMPARISON OVER THE SET OF VERTICES
-      for(v in 1:nrow(vertices)){
-         # RETRIEVE CLUSTERING Z-MAPS FROM 'CANALYSIS'
-         model[[1]] <- retrieve_model(analysis1,vertices[v,1])
-         model[[2]] <- retrieve_model(analysis1,vertices[v,2])
-         lprefix <- paste2(prefix,"_",gsub(",","_",vertices[v,1]),"-",gsub(",","_",vertices[v,2]),".csv")
-         if( !is.na(model[[1]][["model"]]$loglik) && !is.na(model[[2]][["model"]]$loglik)){
-            cross_comparison_results[[v]] <- cross_compare_models(model[[1]],model[[2]])
-            print(lprefix)
-            write.table(cross_comparison_results[[v]],file=lprefix,na="",dec=",",sep=";")
-         }
+`compare_cresult` <-
+function(cresult,cresult2=NULL,query=NULL){
+   prefix               <- attr(cresult,"prefix")
+   nbr_top_models       <- attr(cresult,"nbr_top_models")
+   cross_comparison_results <- list()
+   best_models          <- get_best_models(cresult)
+   model_pairs          <- t(combn(best_models,m=2))
+   if(nrow(model_pairs)>=1){
+      cnames            <- gsub(",","_",paste("(",apply(model_pairs,1,paste,collapse="),("),")",sep=""))
+      for(mp_idx in 1:nrow(model_pairs)){
+         x              <- cresult[[which(model_pairs[mp_idx,1] == names(cresult))]]
+         y              <- cresult[[which(model_pairs[mp_idx,2] == names(cresult))]]
+         if( !is.na(attr(x,"model")$loglik) && !is.na(attr(y,"model")$loglik))
+            cross_comparison_results[[cnames[mp_idx]]] <- cross_compare_models(x,y)
       }
    }
-   for(m in unique(as.character(vertices))){
-      m <- retrieve_model(analysis1,m)
-      save_model(m[["model"]],attr(config,"prefix"))
-   }
-
-#   }
    return(cross_comparison_results)
 }
 
-`compute_plot_data` <-
+`compute_pattern` <-
 function(data,fun=mean){
-   data                 <- data.matrix(aggregate(data,fun,by=list(class=data[,"class"]),na.rm=TRUE))[,-1]
+   data                 <- data.matrix(aggregate(data,fun,by=list(class=data[,"class"])))[,-1]
    row.names(data)      <- 1:nrow(data)	
    if(!is.na(match("class", dimnames(data)[[2]])))
       data              <- data[,-match("class", dimnames(data)[[2]])]
    return(data)
 }
 
-`cresult_graphic_characteristics` <-
-function(cresult,canalysis_data,canalysis_config){
-   # RETRIEVE VIGNETTE TITLES 
-   parcoord_titles      <- unique(as.character(attr(canalysis_data,"settings")[,"visu_groups"]))
-   fig_params           <- list()
-   for(v in parcoord_titles)
-      fig_params        <- c(fig_params, list(list(title = v , type = "plot_parcoord")))
-   fig_params           <- c(fig_params, list(list(title = "", type = "plot_legend")))
-   fig_params           <- c(fig_params, list(list(title = "", type = "plot_image")))
-   fig_params           <- c(fig_params, list(list(title = "", type = "plot_dendro_cluster")))
-   fig_params           <- c(fig_params, list(list(title = "", type = "plot_dendro_var")))
-   # PAGE-MARGINS
-   for( m_idx in 1:length(cresult[["out"]]) ){
-      m         <- cresult[["out"]][[m_idx]]
-      pdata     <- list()
-      if(!is.na(m[["loglik"]]) & m[["G"]] >= 3){
-         par(mfrow=c(3,3), 'las'=1,'mai'=c(0.2,0.7,0.5,0.7),new=FALSE)
-         for(fig in fig_params)
-            pdata <- c(pdata, list(set_plot_data(canalysis_data = canalysis_data , 
-                        canalysis_config = canalysis_config , model = m , 
-                        plot_data_fun = list(center_pattern  = mean) , type = fig[["type"]], 
-                        title_str = fig[["title"]])))
-         # STORE THE PDATA INTO THE MODEL
-         cresult[["out"]][[m_idx]][["pdata"]] <- pdata
-         # DO THE PLOTTING
-         for(local_pdata in pdata)
-            attr(local_pdata,"plot_fun")(local_pdata)
-         }
-   }
-   return(cresult)
-}
-
-`cresult_numeric_characteristics` <-
-function(cresult,canalysis_data,canalysis_config){
-   for( m_idx in 1:length(cresult[["out"]]) ){
-      m         <- cresult[["out"]][[m_idx]]
-      pdata     <- list()
-      if(!is.na(m[["loglik"]]) & m[["G"]] >= 3){
-         list_stat_fun <- attr(canalysis_config,"stats_fun")
-         for(n in names(list_stat_fun)){
-            cresult[["out"]][[m_idx]][["stats"]][[n]] <- list_stat_fun[[n]](data=canalysis_data,class=m[["z"]])
-            cat(m[["G"]],m[["modelName"]],", ")
-         }
-      }
-   }
-   return(cresult)
-}
-
 `cross_compare_models` <-
-function(model1,model2){
+function(x,y){
    # CONTINGENCY TABLE BY CROSS COMPARISONS BETWEEN MODEL 1 AND 2
-   x_comparison	  <- as.table(ftable(model1[["labelling"]],model2[["labelling"]]))
+   x_comparison	        <- as.table(ftable(attr(x,"model")$labelling,attr(y,"model")$labelling))
    # USE JOINT PROBABILITIES TO COMPUTE THE CONTINGENCY TABLE (%) 
-   x_comparison_p <- fullproba_ftable(model1[["model"]]$z,model2[["model"]]$z)
-   map_rand_err_test <- t.test(as.numeric(x_comparison/sum(x_comparison)-x_comparison_p))
+   x_comparison_p       <- fullproba_ftable(attr(x,"model")$z,attr(y,"model")$z)
+   map_rand_err_test    <- t.test(as.numeric(x_comparison/sum(x_comparison)-x_comparison_p))
    # CHI2_STATS: TEST THE ASSOCIATION BETWEEN THE TWO CATEGORICAL VARIABLES
    # H0: NO ASSOCIATION BETWEEN THE TWO VARIABLES
    # H1: THERE IS ASSOCIATION BETWEEN THE TWO VARIABLES
-   ind_test     <- chisq.test(x_comparison)
+   ind_test             <- chisq.test(x_comparison)
    # CRAMER'S V 
-   x_summary    <- summary(x_comparison)
-   n            <- as.numeric(x_summary["n.cases"]) 
-   X2           <- as.numeric(x_summary["statistic"]) 
-   k            <- min(dim(x_comparison)) 
-   V            <- sqrt(X2/(n*(k-1))) 
+   x_summary            <- summary(x_comparison)
+   n                    <- as.numeric(x_summary["n.cases"]) 
+   X2                   <- as.numeric(x_summary["statistic"]) 
+   k                    <- min(dim(x_comparison)) 
+   V                    <- sqrt(X2/(n*(k-1))) 
    # PEARSON'S CORRELATION: REPORT CORRELATION BETWEEN THE TWO CATEGORICAL
    # VARIABLES TEST (P) WHETHER THE CORRELATION IS EQUAL TO ZERO AND REPORTS
    # THE 95% CONFIDENCE INTERVAL
-   cor_test     <- cor.test(model1[["labelling"]],model2[["labelling"]],use="pairwise.complete.obs")
+   cor_test     <- cor.test(attr(x,"model")$labelling,attr(y,"model")$labelling,use="pairwise.complete.obs")
    # BIND STATISTICS SUCH AS LOG-ODD RATIO, LAMBDA-SIBS INTO A FINAL TABLE 1RST
    # DIRECTION
-   for(s in names(model1[["model"]][["stats"]]))
-      x_comparison	<- cbind(x_comparison,data.matrix(model1[["model"]][["stats"]][[s]][["out"]]))
-   mat_stats	<- matrix(0,0,model2[["G"]])
-   for(s in names(model2[["model"]][["stats"]]))
-      mat_stats <- rbind(mat_stats, t(model2[["model"]][["stats"]][[s]][["out"]]))
-   mat_stats <- cbind(mat_stats, matrix(0,nrow(mat_stats),ncol(x_comparison)-model2[["G"]]))
+   for(s in names(attr(x,"stats")))
+      x_comparison	<- cbind(x_comparison,data.matrix(attr(x,"stats")[[s]][["out"]]))
+   mat_stats	<- matrix(0,0,attr(y,"model")$G)
+   for(s in names(attr(y,"stats")))
+      mat_stats <- rbind(mat_stats, t(attr(y,"stats")[[s]][["out"]]))
+   mat_stats    <- cbind(mat_stats, matrix(0,nrow(mat_stats),ncol(x_comparison)-attr(y,"model")$G))
    dimnames(mat_stats)[[2]] <- dimnames(x_comparison)[[2]]
    x_comparison <- rbind(x_comparison,mat_stats)
    # FINALLY, ORDER THE ROWS AND THE COLUMNS BY (DI)SIMILARIY, HIERARCHICAL
    # CLUSTERING
-   ordering <- list(row=hclust(dist(x_comparison[1:model1$G,1:model2$G]))$order,
-                                 column=hclust(dist(t(x_comparison[1:model1$G,1:model2$G])))$order)
-   x_comparison	<- x_comparison[c(ordering$row,(model1$G+1):nrow(x_comparison)),c(ordering$col,(model2$G+1):ncol(x_comparison))]
+   ordering     <- list(row=hclust(dist(x_comparison[1:attr(x,"model")$G,1:attr(y,"model")$G]))$order,
+                     column=hclust(dist(t(x_comparison[1:attr(x,"model")$G,1:attr(y,"model")$G])))$order)
+   x_comparison	<- x_comparison[c(ordering$row,(attr(x,"model")$G+1):nrow(x_comparison)),c(ordering$col,(attr(y,"model")$G+1):ncol(x_comparison))]
    # BIND CHI2 STATS
-   x_comparison  <- rbind(x_comparison,"")
+   x_comparison <- rbind(x_comparison,"")
    x_comparison[which(x_comparison == 0)] <- ""
    row.names(x_comparison)[nrow(x_comparison)]    <- ind_test$method
    x_comparison[nrow(x_comparison),1:2]           <- c(ind_test$p.value,paste2(
@@ -188,51 +102,48 @@ function(model1,model2){
    # TO QUICKEN THE LATER OPENING OF THE MANY CSV FILES,  WE REDUCE THE NUMBER
    # OF ZEROS TO CLEAR MANUALLY. IN WRITE.CSV2 'NA' ARE SUBSTITUTED BY EMPTY
    # STRINGS
-   x_comparison[is.na(x_comparison) ] <- ""
+   x_comparison[is.na(x_comparison) ]   <- ""
+   x_comparison                         <- as.data.frame(x_comparison)
    return(x_comparison)
 }
 
-`em_clustering` <-
-function(data, G_set=1:9,
-        modelNames=c("EII", "VII","EEI","VEI","EVI","VVI","EEE","EEV","VEV","VVV"
-        ),rseed=6013) {
-   set.seed(rseed)
-   # clustering results
-   cresult_tmp      <- list()
-   idx          <- 1
-   BIC          <- matrix(NA,length(G_set),length(modelNames),dimnames=list(G_set, modelNames))
-   for(g in G_set){
-      for(m in modelNames){
-         cresult_tmp[[idx]]             <- em_mbc(data=data,modelName=m, G=g)
-         BIC[as.character(g),m]         <- bic(modelName = m, loglik = cresult_tmp[[idx]]$loglik,n=nrow(data),d=ncol(data),G=g)
-         idx                            <- idx+1
-      }
-   }
-   best_model_idx       <- which(BIC == max(BIC,na.rm=TRUE))[1]
-   cresult              <- cresult_tmp[[best_model_idx]]
-   cresult[["out"]]     <- cresult_tmp
-   attr(cresult[["out"]],"BIC") <- BIC
-   return(cresult)
-}
-
-`em_mbc` <-
-function(data, modelName="VVI", G=5) {
+`fun_mbc_em` <-
+function(data
+        , G = 3
+        , modelName = "EII"
+        , rseed=6013) {
+   # 
+   G            <- as.numeric(G)
+   modelName   <- as.character(modelName)
+   # PREPARE A RANDOM MATRIX OF CLUSTER MEMBERSHIPS WITH G COLS AND N ROWS
    if(G >= 2){
-      mat          <- matrix(rnorm(G*nrow(data)),nrow(data),G)
-      # not very satisfying that at least one of the component is zero...
-      mat          <- mat-apply(mat,1,min)
-      mat          <- mat/apply(mat,1,sum)
+      cmembership_matrix        <- matrix(rnorm(G*nrow(data)),nrow(data),G)
+      # !!! NOT VERY SATISFYING THAT AT LEAST ONE OF THE COMPONENT IS ZERO...!!!
+      cmembership_matrix        <- cmembership_matrix-apply(cmembership_matrix,1,min)
+      cmembership_matrix        <- cmembership_matrix/apply(cmembership_matrix,1,sum)
    }
    else
-      mat          <- matrix(1,nrow(data),G)
+      cmembership_matrix        <- matrix(1,nrow(data),G)
+   # ESTIMATE AN INITIAL MODEL WHICH WE PROVIDE AS STARTING POINT TO EM
+   m_step_estimate              <- mstep( data = data
+                                        , modelName = modelName
+                                        , z = cmembership_matrix)
+   # AND THEN, STARTS EM WITH THE E-STEP
+   model                       <- em(    data = data
+                                        , modelName = m_step_estimate$modelName
+                                        , parameters = m_step_estimate$parameters)
    #
-   msEst        <- mstep(modelName = modelName, data=data,z=mat)
-   # an initial model is then estimated and provided as starting point to the em-algorithm
-   em_model     <- em(modelName = msEst$modelName, data = data,parameters = msEst$parameters)
-   return(em_model)
+   model[["labelling"]]        <- map(model[["z"]],warn=FALSE)
+   # CALCULATE THE BIC SCORE
+   model[["BIC"]]              <- bic(   modelName = modelName
+                                        , loglik = model$loglik
+                                        , n = nrow(data)
+                                        , d = ncol(data)
+                                        , G = G)
+   return(model)
 }
 
-`evaluate_generalization` <-
+`stats_generalization` <-
 function(data,class
    , fun_classifier = list(model=model_naive_bayes,predict=predict_naive_bayes)
    , K=7
@@ -241,57 +152,56 @@ function(data,class
    , title = NULL
 )
 {
-   #
-   class                   <- map(class)
-   fun_transform           <- data[["fun_transform"]]
-   local_data              <- cbind(data[["cc"]][,unlist(data[["sumscore_groups"]])],class=class)
+   class                <- map(class)
+   ldata                <- cbind(get_cdata(data),class=class)
    # INITIALIZATION
-   indexes <- testfold     <- list()
-   models <- predictions   <- contingency.tables <- perfmeasures <- list()
-   G                       <- length(table(local_data$class))
+   indexes <- testfold  <- list()
+   models <- predictions<- contingency.tables <- perfmeasures <- list()
+   G                    <- length(table(class))
    if(!(G == 0)){
       # GENERATE THE DIFFERENT STRATA FROM THE K-FOLD CROSS VALIDATION
-      out_cv <- fun_eval(local_data,K)
+      out_cv <- fun_eval(ldata,K)
       indexes <- out_cv[["indexes"]]
       K <- out_cv[["K"]]
       # PROCEED TO EVALUATION FOR EACH K-FOLD
       for(k in 1:K){
          # INIT THE K-TH TEST FOLD
-         testfold[[k]] <- list()
+         testfold[[k]]          <- list()
          for(g in 1:G)
-                  testfold[[k]] <- append(testfold[[k]],row.names(local_data[local_data$class == g,][indexes[[g]][k,],]))
-         testfold[[k]] <- unlist(testfold[[k]])
+            testfold[[k]]       <- append(testfold[[k]],row.names(ldata[ldata[,"class"] == g,][indexes[[g]][k,],]))
+         testfold[[k]]          <- unlist(testfold[[k]])
          # DEFINE TRAIN AND TEST SETS
-         trainset <- local_data[-pmatch(testfold[[k]], row.names(local_data)),]
-         testset  <- local_data[ pmatch(testfold[[k]], row.names(local_data)),]
-         #		
-         for(fun_name in names(fun_transform)){
-            fun_out         <- fun_transform[[fun_name]](trainset[,-match("class",dimnames(trainset)[[2]])])
-            trainset        <- cbind(fun_out[["data"]][,data[["analysis_variables"]]],class=trainset$class)
-            fun_out         <- fun_transform[[fun_name]](data=testset[,-match("class",dimnames(testset)[[2]])],model=fun_out[["model"]])
-            testset         <- cbind(fun_out[["data"]][,data[["analysis_variables"]]],class=testset$class)
-            }
-         # TRAIN DIFFERENT MODELS, NAMELY NAIVE BAYES, SVM AND
-         # 1-NN RK: SVM USES G(G-1) CLASSIFIERS, NAIVE BAYES AND
-         # KNN ARE SINGLE MULTI-CLASS
-         formula                 <- as.formula("class ~ .")
-         # models[[k]]		<- fun_classifier[["model"]](formula,testset)
-         models[[k]]		<- fun_classifier[["model"]](formula,trainset,testset)
-         predictions[[k]]	<- fun_classifier[["predict"]](models[[k]],testset)
-         contingency.tables[[k]] <- table(predictions[[k]],testset[,"class"])
-         perfmeasures[[k]]	<- sum(diag(contingency.tables[[k]]))/sum(contingency.tables[[k]])
+         cdata_train            <- set_cdata(data = ldata[-pmatch(testfold[[k]], row.names(ldata)),]
+                                                , settings = attr(data,"settings"))
+         cdata_test             <- set_cdata(data = ldata[ pmatch(testfold[[k]], row.names(ldata)),]
+                                                , tdata = attr(cdata_train,"tdata")
+                                                , settings = attr(data,"settings"))
+         trainset               <- cbind(get_cdata(cdata_train),class=cdata_train[,"class"])
+         testset                <- cbind(get_cdata(cdata_test),class=cdata_test[,"class"])
+         # TRAIN DIFFERENT MODELS, NAMELY NAIVE BAYES, SVM AND 1-NN RK: SVM
+         # USES G(G-1) CLASSIFIERS, NAIVE BAYES AND KNN ARE SINGLE MULTI-CLASS
+         models[[k]]            <- fun_classifier[["model"]](as.formula("class ~ ."),trainset,testset)
+         predictions[[k]]       <- fun_classifier[["predict"]](models[[k]],testset)
+         contingency.tables[[k]]<- table(predictions[[k]],testset[,"class"])
+         perfmeasures[[k]]      <- sum(diag(contingency.tables[[k]]))/sum(contingency.tables[[k]])
       }
       # SUMMARY STATISTICS
-      perfs		<- unlist(perfmeasures)
-      #
-      out <- t(matrix(c(mean(perfs),1.96*sd(perfs,na.rm=TRUE),K),3,G,dimnames=list(list(title,"CI 95%","K-folds"),as.list(1:G)),byrow=FALSE))
-      out[2:G,] <- NA
-      # RETURNED DATA
-      return(list(models=models, predictions=predictions, contingency.tables=contingency.tables,
-            perfmeasures=perfmeasures, avg=mean(perfs,na.rm=TRUE), sd=1.96*sd(perfs,na.rm=TRUE),out=out))
+      perfs		        <- unlist(perfmeasures)
+      out                       <-t( matrix( c( mean(perfs),
+                                                1.96*sd(perfs,na.rm=TRUE),K)
+                                             , 3
+                                             , G
+                                             , dimnames=list(list(title,"CI95%","K-folds"),as.list(1:G)),byrow=FALSE))
+      out[2:G,]                 <- NA
+      return(list(      models = models
+                        , predictions = predictions
+                        , contingency.tables = contingency.tables
+                        , perfmeasures = perfmeasures
+                        , avg=mean(perfs,na.rm=TRUE)
+                        , sd=1.96*sd(perfs,na.rm=TRUE)
+                        , out=out))
    }
-   else
-      return(NULL)
+   else return(NULL)
 }
 
 `fullproba_ftable` <-
@@ -307,7 +217,7 @@ function(z1, z2){
    return(m_out)
 }
 
-`generate_canalysis_config` <-
+`generate_cdata_settings` <-
 function(data){
    # DEFINE THE DEFAULT VALUES OF OUR CONF MATRIX
    conf_col_names <- list("group","in_canalysis","fun_transform","visu_groups","visu_ycoord")
@@ -325,23 +235,15 @@ function(data){
    return(conf_mat)
 }
 
-`get_canalysis_data` <-
+`get_cdata` <-
 function(data, which_data = NULL)
 {
-   if(class(data) != "canalysis_data")
-   {
-      print("Error (get_canalysis_data): You must provide data of type canalysis_data")
-      break ;
-   }
+   var_names <- get_canalysis_variables(attr(data,"settings"))
+   if(is.null(which_data))
+      data_out <- data[,var_names]
    else
-   {
-      var_names <- get_canalysis_variables(attr(data,"settings"))
-      if(is.null(which_data))
-         data_out <- data[,var_names]
-      else
-         data_out <- attr(data,"data_o")[,var_names]
-      return(data_out)
-   }
+      data_out <- attr(data,"data_o")[,var_names]
+   return(data_out)
 }
 
 `get_canalysis_variables` <-
@@ -351,94 +253,54 @@ function(settings)
    return(row.names(settings)[which_var])
 }
 
-`get_coloring_scheme` <-
-function(data){
-   # COMPUTE THE PATTERN, 1ST
-   data_pattern         <- compute_plot_data(as.matrix(data),mean)
-   # MAKE A DENDROGRAM FROM THESE AVG PATTERN FOR THE DENDROGRAM ORDERING
-   dendro_patterns      <- hclust(dist(data_pattern))
-   # SELECT DIVERGING COLORS FROM RColorBrewer
-   cluster_colors       <- brewer.pal(nrow(data_pattern),"Set1")
-   # RETURN A DATA STRUCTURE WITH CLUSTERS RIGHTLY ORDERED AND THEIR ASSOCIATED COLOR
-   return(list(cluster_order=dendro_patterns$order,cluster_color=cluster_colors))
-}
-
-`get_model_set` <-
-function(relativeBic, bbox_threshold=5){
-   relativeBic <- list(bicTable=relativeBic, bbox = apply(abs(relativeBic) < bbox_threshold,2,which))
-   relativeBic$bbox <- relativeBic$bbox[which(lapply(relativeBic$bbox,length) >0)]
-   # DERIVE VERTICES TO COMPARE WITHIN THE 5% BBOX OF THE BIC TABLE
-   relativeBic$best_models <- matrix(0,0,2,dimnames=list(list(),list("modelName","G")))
-   for(m in names(relativeBic$bbox))
-      for(g in relativeBic$bbox[[m]])
-         relativeBic$best_models <- rbind(relativeBic$best_models,c(m,row.names(relativeBic[["bicTable"]])[g]))
-   return(relativeBic[["best_models"]])
-}
-
-`get_stats_fun` <-
+`get_fun_stats` <-
 function(fun_name="oddratios",...){
    # ODD RATIOS CHARACTERIZING EACH CLUSTER
+   if(fun_name == "lambdasibs")
+      return(function(data,class) { return(stats_lambdasibs(data,class,...)) })
+   # ODD RATIOS CHARACTERIZING EACH CLUSTER
    if(fun_name == "oddratios")
-      return(
-         function(data,class) { return(statistics_logodds(data,class,...)) })
+      return(function(data,class) { return(stats_logodds(data,class,...)) })
    # AREA UNDER THE UNCERTAINTY CURVE
    if(fun_name == "auuc")
-      return(
-         function(data,class) { return(area_under_uncertainty_curve(class)) })
+      return(function(data,class) { return(stats_auuc(class)) })
    # GENERALIZATION ESTIMATES OF MACHINE LEARNING ALGORITHMS
    if(fun_name == "gen_naive_bayes")
-      return(
-         function(data,class) { return(
-               evaluate_generalization(
+      return(function(data,class) { return(
+               stats_generalization(
                   data,
                   class,
                   fun_classifier=list(model = model_naive_bayes,predict = predict_naive_bayes),
                   title = "naive Bayes",
                   ...)) })
    if(fun_name == "gen_knn")
-      return(
-         function(data,class) { return(
-               evaluate_generalization(
+      return(function(data,class) { return(
+               stats_generalization(
                   data,
                   class,
                   fun_classifier=list(model = model_knn,predict = predict_knn),
                   title = "1 nearest neighbour",
                   ...)) })
    if(fun_name == "gen_svm")
-      return(
-         function(data,class) { return(
-               evaluate_generalization(
+      return(function(data,class) { return(
+               stats_generalization(
                   data,
                   class,
                   fun_classifier=list(model = model_svm,predict = predict_svm),
                   title = "Support Vector Machine",
-                  ...)) }
-         )
+                  ...)) })
    else
       return(NULL)
 }
 
-`get_vertice_set` <-
-function(relativeBic, bbox_threshold=5){
-   relativeBic <- list( bicTable=relativeBic, 
-                        # TO SELECT THE OPTIMAL ONES BY RANKING, I.E. THE 5 BEST ONES 
-                        bbox = apply(relativeBic <= max(sort(relativeBic)[1:bbox_threshold],na.rm=TRUE), 2,which)
-                        # TO SELECT ALL MODELS BELOW A GIVEN THRESHOLD
-#                        bbox = apply(abs(relativeBic) < bbox_threshold,2,which)
-                        )
-   relativeBic$bbox <- relativeBic$bbox[which(lapply(relativeBic$bbox,length) >0)]
-   # DERIVE VERTICES TO COMPARE WITHIN THE 5% BBOX OF THE BIC TABLE
-   relativeBic$vertices <- matrix(0,0,2,dimnames=list(list(),list("m1_g1","m2_g2")))
-   for(m1 in names(relativeBic$bbox))
-      for(m2 in names(relativeBic$bbox))
-         if(match(m2,names(relativeBic$bbox)) >= match(m1,names(relativeBic$bbox)))
-            for(g1 in relativeBic$bbox[[m1]])
-               for(g2 in relativeBic$bbox[[m2]])
-                  if((m1 != m2 & g2 >= g1) | (m1 == m2 & g2 > g1))
-                     relativeBic$vertices <- rbind(relativeBic$vertices,c(
-                                                      paste(m1,row.names(relativeBic[["bicTable"]])[g1],collapse="",sep=","),
-                                                      paste(m2,row.names(relativeBic[["bicTable"]])[g2],collapse="",sep=",")))
-   return(relativeBic[["vertices"]])
+`get_best_models` <-
+function(cresult){
+   bic_table    <- get_bic_table(cresult,which_bic = "relative_BIC", type="long")
+   top_count    <- attr(cresult,"nbr_top_models")
+   # TO SELECT THE OPTIMAL ONES BY RANKING, I.E. THE 5 BEST ONES 
+   best_bics    <- bic_table[na.omit(order(bic_table$relative_BIC,decreasing=FALSE)[1:top_count]),]
+   best_models  <- apply(best_bics[,c("modelName","G")],1,paste,collapse=",",sep="")
+   return(best_models)
 }
 
 `init_data_cc` <-
@@ -449,402 +311,204 @@ function(data,settings)
    return(data_mat)
 }
 
-`mclust2` <-
-function (data, G = NULL, modelNames = NULL, prior = NULL, control = emControl(), initialization = NULL, warn = FALSE, ...) 
-{
-    mc                  <- match.call(expand.dots = FALSE)
-    mc[[1]]             <- as.name("mclust2_BIC")
-    Bic                 <- eval(mc, parent.frame())
-    G                   <- attr(Bic, "G")
-    modelNames          <- attr(Bic, "modelNames")
-    Sumry               <- summary_mclust2_BIC(Bic, data, G = G, modelNames = modelNames)
-    if (!(length(G) == 1)) {
-        bestG           <- length(unique(Sumry$cl))
-        if (bestG == max(G)) 
-            warning("optimal number of clusters occurs at max choice")
-        else if (bestG == min(G)) 
-            warning("optimal number of clusters occurs at min choice")
-    }
-    attr(Bic, "n")      <- attr(Bic, "warn") <- NULL
-    attr(Bic, "initialization") <- attr(Bic, "control") <- NULL
-    attr(Bic, "d")      <- attr(Bic, "returnCodes") <- attr(Bic, "class") <- NULL
-    oldClass(Sumry)     <- NULL
-    Sumry$bic           <- Sumry$bic[1]
-    ans                 <- c(list(out = Bic), Sumry)
-    orderedNames <- c("modelName", "n", "d", "G", "bic", "loglik", "parameters", "z", "classification", "uncertainty","out")
-    structure(ans[orderedNames], class = "mclust2_mclust2_Mclust")
-}
 
-`mclust2_BIC` <-
-function (data, G = NULL, modelNames = NULL, prior = NULL, control = emControl(), 
-    initialization = list(hcPairs = NULL, subset = NULL, noise = NULL), 
-    Vinv = NULL, warn = FALSE, x = NULL, ...) 
-{
-    #
-    # CONTROL OF THE PARAMETERS
-    # 
-    if (!is.null(x)) {
-        if (!missing(prior) || !missing(control) || !missing(initialization) || !missing(Vinv)) 
-            stop("only G and modelNames may be specified as arguments when x is supplied")
-        #
-        # SET LOCAL SCOPE VARIABLES WITH ATTRIBUTES OF THE SAME NAME FROM OBJECT x
-        #
-        prior           <- attr(x, "prior")
-        control         <- attr(x, "control")
-        initialization  <- attr(x, "initialization")
-        Vinv            <- attr(x, "Vinv")
-        warn            <- attr(x, "warn")
-    }
-    #
-    # DATA MATRIX CONTROL (DIMENSION)
-    #
-    dimData             <- dim(data)
-    oneD                <- is.null(dimData) || length(dimData[dimData > 1]) == 1
-    if (!oneD && length(dimData) != 2) 
-        stop("data must be a vector or a matrix")
-    # SET LOCAL SCOPE DIMENSION VARIABLES
-    if (oneD) {
-        data            <- drop(as.matrix(data))
-        n               <- length(data)
-        d               <- 1
-    }
-    else {
-        data            <- as.matrix(data)
-        n               <- nrow(data)
-        d               <- ncol(data)
-    }
-    #
-    # SET DEFAULT MODEL PARAMETERS IF NONE ARE PROVIDED (X IS NULL)
-    #
-    if (is.null(x)) {
-        if (is.null(modelNames)) {
-            # IF DIMENSION IS OF LENGTH 1, ONLY TWO AVAILABLE MODELS
-            if (d == 1) {
-                modelNames <- c("E", "V")
-            }
-            # MODELS FOR OTHER DIMENSIONS
-            else {
-                modelNames <- .Mclust$emModelNames
-                if (n <= d) {
-                  m             <- match(c("EEE", "EEV", "VEV", "VVV"), .Mclust$emModelNames,nomatch = 0)
-                  modelNames    <- modelNames[-m]
-                }
-            }
-        }
-        # NUMBER OF CLUSTERS TO LOOK FOR, MAY BE A VECTOR OF NUMBERS
-        if (is.null(G)) {
-            # IF THE MODELING WAS CHOSEN WITHOUT POISSON NOISE, THEN DEFAULT G
-            # RANGE FROM 1 TO 9, ELSE 0 IS ALLOWED FOR NOISE MODELING ONLY (SEE
-            # DOCUMENTATION)
-            G           <- if (is.null(initialization$noise)) 
-                1:9
-            else 0:9
-        }
-        else {
-            G           <- sort(as.numeric(G))
-        }
-        # ORDERED CLUSTER NUMBERS AND MODELS
-        Gall            <- G
-        Mall            <- modelNames
-    }
-    #
-    # CONTROL PROVIDED PARAMETERS
-    #
-    else {
-        Glabels         <- dimnames(x)[[1]]
-        Mlabels         <- dimnames(x)[[2]]
-        if (is.null(G)) 
-            G           <- Glabels
-        if (is.null(modelNames)) 
-            modelNames  <- Mlabels
-        # 
-        # ARE THE PROVIDED PARAMETERS POSSIBLE, MATCH CONTROL
-        #
-        Gmatch                  <- match(as.character(G), Glabels, nomatch = 0)
-        Mmatch                  <- match(modelNames, Mlabels, nomatch = 0)
-        if (all(Gmatch) && all(Mmatch)) {
-            attr(x, "G")                <- as.numeric(G)
-            attr(x, "modelNames")       <- modelNames
-            attr(x, "returnCodes")      <- attr(x, "returnCodes")[as.character(G), modelNames, drop = FALSE]
-            return(x[as.character(G), modelNames, drop = FALSE])
-        }
-        Gall            <- sort(as.numeric(unique(c(as.character(G), Glabels))))
-        Mall            <- unique(c(modelNames, Mlabels))
-    }
-    if (any(as.numeric(G)) < 0) {
-        if (is.null(initialization$noise)) {
-            stop("G must be positive")
-        }
-        else {
-            stop("G must be nonnegative")
-        }
-    }
-    #
-    # IF DIM OF THE DATA IS ONE, THEN A MATCHING ON THE PROVIDED MODELS TO
-    # COMPUTE ON IS DONE E, V
-    #
-    if (d == 1 && any(nchar(modelNames) > 1)) {
-        Emodel          <- any(sapply(modelNames, function(x) charmatch("E", x, nomatch = 0)[1]) == 1)
-        Vmodel          <- any(sapply(modelNames, function(x) charmatch("V", x, nomatch = 0)[1]) == 1)
-        modelNames      <- c("E", "V")[c(Emodel, Vmodel)]
-    }
-    #
-    # INITIALIZE VARIABLES
-    #
-    l                   <- length(Gall)
-    m                   <- length(Mall)
-    EMPTY               <- -.Machine$double.xmax
-    BIC  <- AIC  <- SIG <- RET <- matrix(EMPTY, nrow = l, ncol = m, dimnames = list(as.character(Gall), as.character(Mall)))
-    if (!is.null(x)) {
-        AIC[dimnames(x)[[1]], dimnames(x)[[2]]]         <- x
-        BIC[dimnames(x)[[1]], dimnames(x)[[2]]]         <- x
-        SIG[dimnames(x)[[1]], dimnames(x)[[2]]]         <- x
-        RET[dimnames(x)[[1]], dimnames(x)[[2]]]         <- attr(x, "returnCodes")
-        AIC                                             <- AIC[as.character(G), modelNames, drop = FALSE]
-        BIC                                             <- BIC[as.character(G), modelNames, drop = FALSE]
-        RET                                             <- RET[as.character(G), modelNames, drop = FALSE]
-        SIG                                             <- SIG[as.character(G), modelNames, drop = FALSE]
-    }
-    G                   <- as.numeric(G)
-    Glabels             <- as.character(G)
-    Gout                <- G
-    stats				<- NULL
-    #
-    # LIST TO STORE THE RESULTS OF THE MULTIVARIATE NORMAL FITS
-    #
-    outputList          <- NULL
-    #
-    if (is.null(initialization$noise)) {
-    	#
-    	# HERE!!!
-    	#
-        if (G[1] == 1) {
-            for (mdl in modelNames[BIC["1", ] == EMPTY]) {
-                out             <- mvn(modelName = mdl, data = data, prior = prior)
-                out.scores      <- mclust2_bicaic(modelName = mdl, loglik = out$loglik, n = n, d = d, G = 1, equalPro = FALSE)
-                BIC["1", mdl]   <- out.scores[1] 
-                AIC["1", mdl]   <- out.scores[2] 
-                RET["1", mdl]   <- attr(out, "returnCode")
-                outputList    	<- c(outputList,list(out))                
-            }
-            if (l == 1) {
-                BIC[BIC == EMPTY] <- NA
-#                return(structure(BIC, BIC=BIC, AIC=AIC,  SIG=SIG, NSignificant = NSignificant, G = G, 
-                return(structure(BIC, BIC=BIC, AIC=AIC,  SIG=SIG, G = G, 
-                				modelNames = modelNames, prior = prior, control = control, 
-                                initialization = list(hcPairs = initialization$hcPairs, subset = initialization$subset), 
-                                warn = warn, n = n, d = d, oneD = oneD, returnCodes = RET, out = outputList, 
-                                class = "mclust2_BIC"))
-            }
-            G                   <- G[-1]
-            Glabels             <- Glabels[-1]
-        }
-        if (is.null(initialization$subset)) {
-            if (is.null(initialization$hcPairs)) {
-                if (d != 1) {
-                  if (n > d) {
-                    hcPairs     <- hc(modelName = "VVV", data = data)
-                  }
-                  else {
-                    hcPairs     <- hc(modelName = "EII", data = data)
-                  }
-                }
-                else {
-                  hcPairs       <- NULL
-                }
-            }
-            else hcPairs        <- initialization$hcPairs
-            if (d > 1 || !is.null(hcPairs)) 
-                clss            <- hclass(hcPairs, G)
-            #
-            # AFTER FITTING A SINGLE MULTIVARIATE MODEL ON THE DATA (1-CLUSTER, PREVIOUS LOOP),
-            # CALCULATE BY EM ALGORITHM, EVENTUALY INITIALIZED BY HIERARCHICAL CLUSTERING, THE 
-            # STATISTIC FOR "G" CLUSTERS IN THE DATA.
-            #
-            for (g in Glabels) {
-                if (d > 1 || !is.null(hcPairs)) {
-                  z             <- unmap(clss[, g])
-                }
-                else {
-                  z             <- unmap(qclass(data, as.numeric(g)))
-                }
-                for (modelName in modelNames[BIC[g, ] == EMPTY]) {
-                  out           <- me(modelName = modelName, data = data, z = z, prior = prior, control = control, warn = warn)
-                  out.scores    <- mclust2_bicaic(modelName = modelName, loglik = out$loglik, n = n, d = d, G = as.numeric(g), equalPro = control$equalPro)
-                  BIC[g, modelName] <- out.scores[1] 
-                  AIC[g, modelName] <- out.scores[2] 
-                  RET[g, modelName] <- attr(out, "returnCode")
-                  if(RET[g, modelName] == 0){
-                  	stats <- NULL
-               		# stats 		<- mclust2_statistics(mclust2_mergeSibpairs(matrix(map(out$z),
-                  	#							dimnames=list(dimnames(out$z)[[1]], NULL))))
-             	    # SIG[g, modelName]	<- stats["Significant?","T"]
-                  }
-                  else{
-                  	stats				<- NULL
-                  	SIG[g, modelName]	<- 0
-                  	}
-                    
-                  outputList    <- c(outputList,list(out))
-                }
-            }
-        }
-        else {
-            if (is.logical(initialization$subset)) 
-                initialization$subset <- (1:n)[initialization$subset]
-            if (is.null(initialization$hcPairs)) {
-                if (d != 1) {
-                  if (n > d) {
-                    hcPairs     <- hc(modelName = "VVV", data = data[initialization$subset, ])
-                  }
-                  else {
-                    hcPairs     <- hc(modelName = "EII", data = data[initialization$subset, ])
-                  }
-                }
-                else {
-                  hcPairs <- NULL
-                }
-            }
-            else hcPairs <- initialization$hcPairs
-            if (d > 1 || !is.null(hcPairs)) 
-                clss <- hclass(hcPairs, G)
-            for (g in Glabels) {
-                if (d > 1 || !is.null(hcPairs)) {
-                  z <- unmap(clss[, g])
-                }
-                else {
-                  z <- unmap(qclass(data[initialization$subset], as.numeric(g)))
-                }
-                dimnames(z) <- list(as.character(initialization$subset), NULL)
-                for (modelName in modelNames[!is.na(BIC[g, ])]) {
-                  ms 			<- mstep(modelName = modelName, z = z, data = as.matrix(data)[initialization$subset, ], 
-                  						prior = prior, control = control, warn = warn)
-                  es 			<- do.call("estep", c(list(data = data, warn = warn), ms))
-                  out 			<- me(modelName = modelName, data = data, z = es$z, prior = prior, control = control, warn = warn)
-                  out.scores    <- mclust2_bicaic(modelName = modelName, loglik = out$loglik, n = n, d = d, G = as.numeric(g), 
-                  						equalPro = control$equalPro)
-                  BIC[g, modelName] <- out.scores[1] 
-                  AIC[g, modelName] <- out.scores[2] 
-                  RET[g, modelName] <- attr(out, "returnCode")
-                  if(RET[g, modelName] == 0){
-                  		stats 	<- NULL
-#               		 stats 		<- mclust2_statistics(mclust2_mergeSibpairs(data,matrix(map(out$z),
-#                  								dimnames=list(dimnames(out$z)[[1]], NULL))))
-             	     # SIG[g, modelName]	<- stats["Significant?","T"]
-                  }
-                  else{
-                  	stats			<- NULL
-                  	SIG[g, modelName]	<- 0
-                  	}
-                  outputList    <- c(outputList,list(out))
-                }
-            }
-        }
-    }
-    structure(BIC, BIC=BIC, AIC=AIC, SIG=SIG, G = Gout, modelNames = modelNames, prior = prior, control = control, 
-        initialization = list(hcPairs = hcPairs, subset = initialization$subset, noise = initialization$noise), 
-        Vinv = Vinv, warn = warn, n = n, d = d, oneD = oneD, 
-        returnCodes = RET, out = outputList,class = "mclust2_BIC")
-}
-
-`mclust2_bicaic` <-
-function (modelName, loglik, n, d, G, noise = FALSE, equalPro = FALSE,...)
-{
-   modelName    <- switch(EXPR = modelName, XII = "EII", XXI = "EEI",XXX = "EEE", modelName)
-   if (G == 0) {
-      if (!noise)
-      stop("undefined model")
-      nparams <- 1
-   }
-   else {
-         nparams <- nVarParams(modelName, d, G) + G * d
-      if (!equalPro)
-         nparams <- nparams + (G - 1)
-      if (noise)
-         nparams <- nparams + 2
-   }
+`get_bic_table` <- function(cresult,which_bic = "relative_BIC", type="wide"){
+   bic_table    <- cbind(attr(cresult, "cfun_params"),BIC=NA,relative_BIC=NA)
+   # PREPARE A BIC SCORE TABLE FROM THE RESULT
+   for(i in 1:length(cresult))
+      bic_table[i,"BIC"]                <- attr(cresult[[i]],"model")[["BIC"]]
    #
-   # RETURN VECTOR WITH LOG BIC AND AIC SCORES
+   bic_table[,"relative_BIC"]   <- 100*(bic_table[,"BIC"]/max(bic_table[,"BIC"],na.rm=TRUE)-1)
    #
-   return(c(2 * loglik - nparams * logb(n), 2 * loglik - 2 * nparams))
+   if(type == "wide"){
+      bic_table                 <- aggregate(bic_table[,which_bic],by=list(modelName=bic_table$modelName,G=bic_table$G),FUN=mean)
+      colnames(bic_table)       <- c("modelName","G",which_bic)
+      bic_table                 <- reshape(bic_table[,c("G","modelName",which_bic)],idvar=c("G"),timevar=c("modelName"),direction="wide")
+      row.names(bic_table)      <- bic_table[,"G"]
+      colnames(bic_table)       <- gsub(paste2(which_bic,"."),"",colnames(bic_table))
+      bic_table                 <- bic_table[,-1]
+   }
+   else
+      bic_table               <- bic_table[,c("G","modelName",which_bic)]
+   return(bic_table)
 }
 
-`model_based_clustering` <-
-function(data, config  # em_clustering OR mclust2
-   , G_set , model_names=c("EII","VII","EEI","VEI","EVI","VVI","EEE","EEV","VEV","VVV"), clust_fun = mclust2) {
-   prefix <- attr(config,"prefix")
-   # DATA FOR THE CLUSTERING (CC AND TRANSFORMED)
-   canalysis_data        <- get_canalysis_data(data)
-   # CLUSTERING
-   cresult	        <- clust_fun(data=canalysis_data,G=G_set,modelNames=model_names)
-   # BIC TABLE AND EVENTUALLy OUTPUT INTO A CSV
-   cresult[["bic_table"]]	        <- attr(cresult[["out"]],"BIC")
-   cresult[["bic_table_relative"]]     <- 100*(cresult[["bic_table"]]/max(cresult[["bic_table"]],na.rm=TRUE)-1)
-   write.table(file=paste2(prefix,"_Relative_BIC_Table.csv"),cresult[["bic_table_relative"]],dec=",",sep=";")
-   # SIMPLIFY MCLUST2 DATA STRUCTURE
-   # the two fun_clust do not produce exactly the same data structure ......
-   tmp_cresult_out <- attr(cresult[["out"]],"out")
-   if(!is.null(tmp_cresult_out))
-      cresult[["out"]] <- tmp_cresult_out
+
+
+`plot.cdata` <- 
+function(x, doPSOutput = TRUE, ...) {
+   ps_output    <- paste2(attr(x,"prefix"),"_CANALYSIS_DATA_PLOT.ps")
+   if(doPSOutput)       
+      postscript(file=ps_output)
+   ldata        <- get_cdata(x)
+   ldata        <- as.data.frame(ldata[1:nrow(ldata),])
+   par(mfrow = c(1,1) , new = FALSE)
+   boxplot(ldata,'las'=2,main=paste2(ps_output," Boxplot "))
+   par(mfrow = c(4,5))
+   for(var in colnames(x)){
+      # prepare tdata text
+      var_idx   <- which(names(attr(x,"tdata")) == var)
+      txt       <- paste2("(", length(table(x[,var])), " values\n")
+      if(length(var_idx) == 1){
+         for(tn in names(attr(x,"tdata")[[var_idx]])){
+            if(tn == "transform_adjust")
+               txt <-  paste2(txt, tolower(gsub("transform_","",tn)), "=", attr(x,"tdata")[[var_idx]][[tn]][["print"]], " ")
+            else
+               txt <-  paste2(txt, tolower(gsub("transform_","",tn)), "=", sprintf("%.2f",attr(x,"tdata")[[var_idx]][[tn]])," ")
+            }
+         }
+      txt    <- paste2(txt,")")
+      # plot the histogram
+      hist(      x[,var]
+               , main   = var
+               , xlab   = txt 
+               , ylab   = ""
+               , cex    = 0.7)
+   }
+   if(doPSOutput)       
+      graphics.off() 
+}
+
+`plot.cresult` <- 
+function(x, doPSOutput = TRUE, query = NULL, ...) {
+   if(is.null(query))   
+      q_cmodel        <- 1:length(x)
+   else 
+      q_cmodel        <- query
+   if(doPSOutput)
+      postscript(file=paste2(attr(x,"prefix"),"_CRESULT_PLOT.ps"))
+   for(i in q_cmodel){
+      if(!is.na(attr(x[[i]],"model")$loglik)){
+         par(mfrow=c(3,3), 'las'=1,'mai'=c(0.2,0.7,0.5,0.7),new=FALSE)
+         for(fun_plot in unlist(attr(x,"fun_plot")))
+            fun_plot(x[[i]])
+      }
+   }
+   if(doPSOutput) 
+      graphics.off() 
+}
+
+`print.cresult` <- 
+function(x, html = TRUE, ...) {
+   print_out <- list()
+   print_out[["bic_table_relative"]]    <- get_bic_table(x,which_bic = "relative_BIC",type="wide")
+   print_out[["bic_table_absolute"]]    <- get_bic_table(x,which_bic = "BIC",type="wide")
+   print_out[["best_models"]]           <- get_best_models(x)
+   print_xcomp                          <- compare_cresult(x)
+   for(p_name in names(print_xcomp)){
+      pxcomp                            <- as.matrix(print_xcomp[[p_name]])
+      pxcomp2                           <- pxcomp
+      pxcomp2[pxcomp2 == ""]            <- "0.00"
+      for(i in 1:nrow(pxcomp)){
+         for(j in 1:ncol(pxcomp)){
+            if(!is.na(as.numeric(pxcomp[i,j]))){
+               pxcomp2[i,j]             <- paste2("<div align='right'>",sprintf(pxcomp2[i,j],fmt='%.2f'),"</div>")
+               if(as.numeric(pxcomp[i,j]) >= 1)
+                  pxcomp2[i,j]             <- paste2("<font color='red'>",pxcomp2[i,j],"</font>")
+               if(as.numeric(pxcomp[i,j]) <= -1)
+                  pxcomp2[i,j]             <- paste2("<font color='blue'>",pxcomp2[i,j],"</font>")
+            }
+            else
+               pxcomp2[i,j]             <- ""
+         }
+      }
+      print_out[[p_name]]               <- structure(pxcomp2,csv=pxcomp)
+   }
+   if(html){
+      directory <- getwd()
+      file      <- paste2(attr(x,"prefix"),"_report.html")
+      file      <- file.path(directory, file)
+      cat("\n", file = file, append = TRUE)
+      for(p_idx in 1:length(print_out)){
+         HTML.title(names(print_out)[[p_idx]],file = file)
+         file_csv       <- paste2(attr(x,"prefix"),"_",names(print_out)[p_idx],".csv")
+         if(!is.null(attr(print_out[[p_idx]],"csv")))
+            write.table(attr(print_out[[p_idx]],"csv"), na="", dec=",", sep=";", file=file_csv)
+         else
+            write.table(print_out[[p_idx]], na="", dec=",", sep=";", file=file_csv)
+         HTML(paste2("<a href='",getwd(),"/",file_csv,"'>CSV file</a>"), file=file)
+         HTML(print_out[[p_idx]],file=file,align="left")
+      }
+      for(m_name in names(x)){
+         file_img       <- paste2(attr(x,"prefix"),"_",m_name,".png")
+         img_size       <- c(1024,1024)
+         png(file.path(directory,file_img),width=1.1*img_size[1],height=1.1*img_size[2],bg="transparent")
+         plot(x,query = m_name,doPSOutput =FALSE)
+         dev.off()
+         HTMLInsertGraph(file_img,Caption = paste2("Figure. Graphic characteristics of model ",m_name)
+               , file=file,GraphBorder = 0, WidthHTML=img_size[1],HeightHTML=img_size[2])
+      }
+      cat(paste2("Report written: ", file))
+   }
+   else
+      return(print_out)
+}
+
+`fun_cmodel` <-
+function(cresult) {
+   # RETRIEVE DATA FOR THE CANALYSIS
+   cdata        <- get_cdata(attr(cresult,"cdata"))
+   for(i in 1:length(cresult)){
+      cat("\n",names(cresult)[[i]])
+      attr(cresult[[i]],"model")                <- cresult[[i]](cresult[[i]],cdata)
+      if(!is.na(attr(cresult[[i]],"model")$loglik)){
+         cdata_l                                <- cbind(attr(cresult,"cdata"),class=attr(cresult[[i]],"model")[["labelling"]])
+         cat("-> Patterns")
+         # COMPUTE PATTERNS
+         for(p in names(attr(cresult,"fun_pattern")))
+            attr(cresult[[i]],"pattern")[[p]]   <- compute_pattern(cdata_l,attr(cresult,"fun_pattern")[[p]])
+         # FOR ORDERING, MAKE A DENDROGRAM FROM THE CENTER PATTERN (NUMBER 1)
+         cat("-> Dendros")
+         avg_p                                  <- attr(cresult[[i]],"pattern")[[1]]
+         attr(cresult[[i]],"dendro_cluster")    <- hclust(dist(avg_p))
+         attr(cresult[[i]],"dendro_var")        <- hclust(dist(t(avg_p)))
+         # REORDER THE PATTERNS
+         cat("-> Ordering")
+         for(p in names(attr(cresult,"fun_pattern")))
+            attr(cresult[[i]],"pattern")[[p]]   <- attr(cresult[[i]],"pattern")[[p]][
+                                                                  attr(cresult[[i]],"dendro_cluster")$order
+                                                                , rev(sort(colnames(avg_p)))]
+         attr(cresult[[i]],"pattern")[["class_count"]] <-  table(cdata_l[,"class"])[attr(cresult[[i]],"dendro_cluster")$order]
+         # SELECT DIVERGING COLORS FROM RColorBrewer
+         attr(cresult[[i]],"cluster_colors")    <- brewer.pal(nrow(avg_p),"Set1")
+         # STATS
+         fun_stats                              <- attr(cresult,"fun_stats")
+         cat("-> Stats")
+         for(n in names(fun_stats))
+            attr(cresult[[i]],"stats")[[n]]     <- fun_stats[[n]](data=attr(cresult,"cdata")
+                                                        , class=attr(cresult[[i]],"model")[["z"]])
+      }
+   }
+   # WRITE A BIC SCORE TABLE AS AN OUTPUT
+   bic_table    <- get_bic_table(cresult,which_bic = "relative_BIC",type="wide")
+   write.table(file=paste2(attr(cresult,"prefix"),"_Relative_BIC_Table.csv"),bic_table,dec=",",sep=";")
    return(cresult)
 }
 
 `model_knn` <-
 function(formula, trainset, testset, k = 1, l = 0, prob = FALSE, use.all = TRUE){
-   return(knn(trainset[,-match("class",names(trainset))], testset[,-match("class",names(testset))] ,trainset[,"class"], k = k, l = l, prob = prob, use.all = use.all))
+   return(knn(    trainset[,-which(colnames(trainset) == "class")]
+                , testset[ ,-which(colnames(testset) == "class")] 
+                , trainset[,"class"]
+                , k = k
+                , l = l
+                , prob = prob
+                , use.all = use.all))
 }
 
 `model_naive_bayes` <-
 function(formula, trainset, testset, laplace = 1){
-   return(naiveBayes(class ~ . , data=trainset, laplace = 1))
+   return(naiveBayes(formula, data=trainset, laplace = 1))
 }
 
 `model_svm` <-
 function(formula, trainset, testset, kernel="linear",type="C-classification"){
-   return(svm(class ~ . , data=trainset,kernel=kernel,type=type))
+   return(svm(formula, data=trainset,kernel=kernel,type=type))
 }
 
 `paste2` <-
 function(...){
 	return(paste(...,collapse="",sep=""))
-}
-
-`plot_init` <-
-function(visu_params,title_str){
-   plot(x=0 ,new=TRUE ,ann=FALSE ,pch=18,col="white",axes=FALSE
-      , xlim=c(visu_params[["xlim"]]$min,visu_params[["xlim"]]$max)
-      , ylim=c(visu_params[["ylim"]]$min,visu_params[["ylim"]]$max))
-   title(main=title_str,cex=0.7)
-}
-
-`plot_legend` <-
-function(pattern, color_settings, xcoord, ycoord){
-   pattern <- pattern[[1]]
-   for(g in 1:nrow(pattern)){
-      g_name <- color_settings[["cluster_order"]][g]
-      y1 <- y0 <-  ycoord +  5 * g / nrow(pattern)
-      x0 <-        xcoord
-      x1 <-        1.2 * xcoord
-      arrows(x0,y0,x1,y1,col=color_settings[["cluster_color"]][g],length=0,lwd=3)
-      text(x0+0.15,y1,labels=paste2(g_name," (",pattern[as.numeric(g_name)],")"),pos=4)
-   }
-}
-
-`plot_parcoord` <-
-function(pattern,T_s,color_sel, lty="full", lwd=3,title_prefix = NULL){
-   # LOOP OVER EACH GROUP PATTERN THAT IS TO VISUALIZE
-   for(g in color_sel[["cluster_order"]]){
-      # LOOP OVER THE DIFFERENT STATISTICS FOR EACH PATTERN
-      D_i_s             <- cbind(X=as.numeric(pattern[g,row.names(T_s)]),Y=as.numeric(T_s[,"visu_ycoord"]))
-      D_i_s	        <- D_i_s[sort.list(D_i_s[,"Y"]),]
-      gap               <- D_i_s[2,"Y"] - D_i_s[1,"Y"]
-      for(l in 1:(nrow(D_i_s)-1))
-         if(!(D_i_s[l+1,"Y"] - D_i_s[l,"Y"] > gap))
-            arrows(D_i_s[l,1], D_i_s[l,2], D_i_s[l+1,1], D_i_s[l+1,2],
-               col=color_sel[["cluster_color"]][g], length=0, lwd=lwd,
-               lty=lty)
-         # ELSE, AS (is_white_gap == TRUE) THEN DO NOT DRAW ANY ARROW...
-   }
 }
 
 `predict_knn` <-
@@ -854,78 +518,88 @@ function(model, testset){
 
 `predict_naive_bayes` <-
 function(model,testset){
-   return(map(predict(model,testset[,-match("class",names(testset))],type="raw")))
+   return(map(predict(model,testset[,-match("class",colnames(testset))],type="raw")))
 }
 
 `predict_svm` <-
 function(model, testset){
-   predict(model,testset[,-match("class",names(testset))])
+   return(predict(model,testset[,-match("class",colnames(testset))]))
 }
 
-`retrieve_model` <-
-function(canalysis,query){
-   # init
-   params       <- list()
-   # retrieve the model corresponding to the query
-   mbc_params   <- strsplit(query,",")[[1]]
-   params       <- list(model=mbc_params[1],G=as.numeric(mbc_params[2]))
-   i            <- 1 
-   while(!(canalysis[["out"]][[i]]$G == params$G & canalysis[["out"]][[i]]$modelName == params$model & i <= length(canalysis[["out"]])))
-      i         <- i+1
-   params[["model"]]     <- canalysis[["out"]][[i]]
-   params[["labelling"]] <- map(params[["model"]]$z,warn=FALSE)
-   return(params)
+`write.cresult` <-
+function(x, query = NULL){
+   if(is.null(query))
+      query             <- get_best_models(x)
+   for(q in query){
+      model             <- attr(x[[q]], "model")
+      out               <- cbind(model[["z"]], class=map(model[["z"]]))
+      colnames(out)[1:(ncol(out)-1)] <- 1:(ncol(out)-1)
+      csv_output        <- paste2(attr(x,"prefix")
+                                , "_Class_"
+                                , model[["modelName"]]
+                                ,"-"
+                                ,model[["G"]]
+                                ,".csv") 
+      print(csv_output)
+      write.csv2(out,file=csv_output)
+   }
 }
 
-`save_data_rep` <-
-function(version = 1.3){
-   fileName <- paste2("PKG_",version,".RData")
-   save(file = fileName, list = c("data_OA", "data_OA_bootstrap_idx",
-      "data_PD_4y", "data_PD_y_1", "data_PD_y_2", "data_PD_y_3", "data_PD_y_4",
-      "data_PHARMAIT", "setup_OA_data", "setup_OA_visu_params", "setup_PD_data",
-      "setup_PD_visu_params"))
+`set_cresult` <-
+function( data          = NULL
+        , cfun          = fun_mbc_em
+        , cfun_settings = list(modelName=c("EII", "VII") ,G=1:9 ,rseed=6013)
+        , fun_pattern   = list(mean=function(x){return(mean(x,na.rm=TRUE))}
+                            , median=function(x){return(median(x,na.rm=TRUE))}
+                            , lowquant=function(x){return(quantile(x,probs = 0.025,na.rm=TRUE))}
+                            , upquant=function(x){return(quantile(x,probs = 0.975,na.rm=TRUE))})
+        , fun_plot      = list(plot_parcoord=get_plot_fun(type="plot_parcoord")
+                              , plot_legend=get_plot_fun(type="plot_legend")
+                              , plot_image=get_plot_fun(type="plot_image")
+                              , plot_dendro_cluster=get_plot_fun(type = "plot_dendro_cluster")
+                              , plot_dendro_var=get_plot_fun(type="plot_dendro_var"))
+        , fun_stats     = list(oddratios=get_fun_stats(fun_name="oddratios"))
+        , nbr_top_models= 5
+        ){
+   # COMPUTES THE COMBINATION OF THE CLUSTERING FUNCTION PARAMETERS 
+   param_set_df         <- cfun_settings[[1]]
+   i <- 2
+   while(i <= length(cfun_settings)){
+      param_set_df      <- merge(param_set_df,cfun_settings[[i]])
+      colnames(param_set_df)<-names(cfun_settings)[1:i]
+      i <- i+1
+   }
+
+   # CONSTRUCT A LIST OF 'CMODEL' DATA STRUCTURES
+   cresult_out          <- list()
+   for(i in 1:nrow(param_set_df)){
+      id_name           <- paste(as.matrix(param_set_df[i, names(cfun_settings)]),collapse=",")
+      fun_call          <- function(cmodel,data){return(do.call(cfun,append(list(data=data),attr(cmodel,"cfun_settings"))))}
+      cresult_out[[id_name]] <- structure(fun_call
+                                , cfun_settings = param_set_df[i,]
+                                , model         = NULL
+                                , pattern       = list()
+                                , dendro_cluster= NULL
+                                , dendro_var    = NULL
+                                , cluster_colors= NULL
+                                , stats         = list()
+                                , class         = "cmodel")
+   }
+   # CONSTRUCT A 'CRESULT' DATA STRUCTURE WITH CMODELS IN IT
+   cresult_out          <- structure(cresult_out
+                                , cdata   = data
+                                , cfun_params      = param_set_df
+                                , fun_plot         = fun_plot
+                                , prefix           = attr(data,"prefix")
+                                , fun_stats        = fun_stats
+                                , fun_pattern      = fun_pattern
+                                , nbr_top_models   = nbr_top_models
+                                , class            = "cresult")
+   return(cresult_out)
 }
 
-`save_model` <-
-function(model, prefix){
-   data_out        <- cbind(  model[["z"]]
-                            , class=map(model[["z"]]))
-   colnames(data_out)[1:(ncol(data_out)-1)] <- 1:(ncol(data_out)-1)
-   fileNameCSV     <- paste2(prefix,"_Class_",model[["modelName"]],"-",model[["G"]],".csv") 
-   print(fileNameCSV)
-   write.csv2(data_out,file=fileNameCSV)
-}
-
-`set_calgo` <-
-function(calgo = "model_based_clustering"
-        , args = list( G_set = 1:9 , model_names=c("EII", "VII","EEI","VEI","EVI","VVI","EEE","EEV","VEV","VVV"))){
-   clust_fun <- function(data=NULL,config=NULL){
-      return(do.call(calgo,append(list(data=data,config=config),args)))
-      }
-   return(clust_fun)
-}
-
-`set_canalysis_config` <-
-function(
-          prefix = NULL
-        , visu_params = NULL
-        , stats_fun = list(oddratios = get_stats_fun(fun_name="oddratios"))
-        , bbox_threshold = 5){
-   #
-   prefix <- paste2(today(),"_",prefix)
-   #
-   cdata_out <- structure(
-     visu_params
-   ,  prefix = prefix
-   , stats_fun = stats_fun
-   , bbox_threshold = bbox_threshold
-   , class = "canalysis_config"
-   )
-   return(cdata_out)
-}
-
-`set_canalysis_data` <-
-function(data, data_o = NULL, tdata = NULL, settings, init_fun = list(init_data_cc)){
+`set_cdata` <-
+function(data, data_o = NULL, tdata = NULL, settings, init_fun = list(init_data_cc), prefix =""){
    tdata_list   <- list()
    settings     <- as.matrix(settings)
    # BACKUP DATA INTO DATA_O 
@@ -934,151 +608,110 @@ function(data, data_o = NULL, tdata = NULL, settings, init_fun = list(init_data_
    # DO INIT FUNCTIONS OF THE DATA
    for(fun in init_fun)
       data <- fun(data,settings)
-   # EVENTUALLY TRANSFORM THE DATA
-   if(is.null(tdata)){
-      t_result  <- transform_canalysis_data(data,settings)
-      data      <- t_result[["data"]]
-      tdata     <- t_result[["tdata"]]
-   }
-   #
-   cdata_out <- structure( data.matrix(data) , data_o = data_o  , tdata = tdata , 
-                        settings = settings , class = "canalysis_data")
+   # TRANSFORM THE DATA
+   t_result     <- transform_cdata(data,settings,tdata)
+   data_out     <- data.matrix(t_result[["data"]])
+   tdata_out    <- t_result[["tdata"]]
+   cdata_out    <- structure(data_out
+                        , data_o        = data_o  
+                        , tdata         = tdata_out
+                        , settings      = settings 
+                        , prefix        = paste2(today(),"_",prefix)
+                        , xlim          = c(-3,3)
+                        , ylim          = c(0,50)
+                        , class         = "cdata")
    return(cdata_out)
 }
 
-`set_canalysis_result` <-
-function(data = NULL, config = NULL , result = list()){
-   if(class(data) == "canalysis_data" & class(config) == "canalysis_config"){
-      cdata_out <- structure(
-      result
-      , data = data
-      , config = config 
-      , class = "canalysis_result"
-      )
-   }
-   else
-      cdata_out <- NULL
-   return(cdata_out)
-}
+`plot_parcoord` <- 
+function(xlim = c(-3,3)
+      , cex = NULL
+      , title = NULL
+      , T_s = NULL
+      , pattern = NULL){
+   return(function(cmodel){
+               plot(x=0 ,new=TRUE ,ann=FALSE ,pch=18,col="white",axes=FALSE ,
+                     xlim=xlim , ylim=c(as.numeric(min(T_s[,"visu_ycoord"])),
+                     as.numeric(max(T_s[,"visu_ycoord"]))))
+               title(main = paste2("(",paste(as.matrix(attr(cmodel, "cfun_settings")),collapse=","),")",title), cex = cex * 0.8)
+               for(x_name in pattern){
+                  pattern         <- attr(cmodel,"pattern")[[x_name]][,row.names(T_s)]
+                  lwd             <- 3
+                  lty             <- "solid"
+                  if(x_name != "mean") {
+                     lwd          <- 1
+                     lty          <- "dashed"
+                  }
+                  for(g in 1:nrow(pattern)){
+                     D_i_s        <- cbind(X=as.numeric(pattern[g,]),Y=as.numeric(T_s[,"visu_ycoord"]))
+                     D_i_s	 <- D_i_s[sort.list(D_i_s[,"Y"]),]
+                     gap          <- D_i_s[2,"Y"] - D_i_s[1,"Y"]
+                     for(l in 1:(nrow(D_i_s)-1))
+                        if(!(D_i_s[l+1,"Y"] - D_i_s[l,"Y"] > gap))
+                           arrows(D_i_s[l,1], D_i_s[l,2], D_i_s[l+1,1], D_i_s[l+1,2], col=attr(cmodel,"cluster_colors")[g], length=0, lwd=lwd, lty=lty)
+                        # ELSE, AS (is_white_gap == TRUE) THEN DO NOT DRAW ANY ARROW...
+                  }
+               }
+               axis(2,at=as.numeric(T_s[,"visu_ycoord"]),labels=colnames(pattern),las=2,tick=FALSE)
+               axis(1,at=seq(from = xlim[1] , to = xlim[2], by = (xlim[2] - xlim[1])/4))
+         })
+} 
 
-`get_plot_fun_parcoord` <- function(def_visu_params , def_color_sel , def_T_s , def_title_prefix ){
-   plot_fun <- function(x, visu_params = def_visu_params , color_sel = def_color_sel , T_s = def_T_s ,title_prefix = def_title_prefix){
-      plot_init(visu_params,title_prefix)
-      # LOOP OVER THE DIFFERENT STATS TO PLOT == RAYS TO GRAPH
-      for(x_name in names(x)){
-         pattern         <- x[[x_name]][color_sel[["cluster_order"]],]
-         lwd             <- 3
-         lty             <- "solid"
-         if(x_name != "center_pattern") {
-            lwd          <- 1
-            lty          <- "dashed"
-         }
-         plot_parcoord(pattern = pattern, T_s = T_s,
-            color_sel = color_sel, lwd = lwd, lty = lty,
-            title_prefix = title_prefix)
-      }
-      axis(2,at=as.numeric(T_s[,"visu_ycoord"]),labels=colnames(pattern),las=2,tick=FALSE)
-      axis(1,at=seq(from = visu_params[["xlim"]]$min , to =
-         visu_params[["xlim"]]$max , by = ((visu_params[["xlim"]]$max -
-         visu_params[["xlim"]]$min)/4)))
-   }
-   return(plot_fun)
-}
-
-`get_plot_fun_image`  <- function(def_visu_params, def_title_prefix){
-   plot_fun <- function(x, visu_params = def_visu_params,title_prefix = def_title_prefix){
-#      plot_init(visu_params,title_prefix)
-      x <- x[[1]]
-      image(1L:nrow(x), 1L:ncol(x), x, xlim = 0.5 + c(0, nrow(x)), ylim = 0.5 +
-         c(0, ncol(x)), axes = FALSE, xlab = "", ylab = "",
-         col=visu_params[["color_gradient"]], main=title_prefix,add=FALSE)
-      axis(2, 1L:ncol(x), labels = colnames(x), las = 2, line = -0.5, tick = 0,
-         cex.axis = visu_params[["cex"]])
-      axis(1, 1L:nrow(x), labels = row.names(x), las = 1, line = -0.5, tick =
-         0, cex.axis = visu_params[["cex"]])
-   }
-   return(plot_fun)
-}
-
-`get_plot_fun_legend`  <- function(def_visu_params, def_color_settings ){
-   plot_fun  <- function(x, visu_params = def_visu_params, color_settings = def_color_settings){
-         plot_legend(pattern = x, color_settings =
-         color_settings, xcoord= visu_params[["legend_xcoord"]], 
-         ycoord= visu_params[["legend_ycoord"]])
-      }
-   return(plot_fun)
-}
-
-`get_plot_fun_dendro`  <- function(def_visu_params , def_title_prefix ){
-   plot_fun  <- function(x, visu_params = def_visu_params,title_prefix = def_title_prefix){
-#         plot_init(visu_params,title_prefix)
-         plot(x[[1]], axes = FALSE, yaxs = "i", main=title_prefix, ylab=NULL,
-         cex=visu_params[["cex"]])
-      }
-   return(plot_fun)
-}
-
-`set_plot_data` <-
-function(
-           canalysis_data 
-         , canalysis_config 
-         , model = NULL
-         , plot_data_fun = list(center_pattern  = mean)
-#                            , lowquant         = function(x){return(quantile(x,probs = seq(0, 1, 0.025))[1])}
-#                            , upquant          = function(x){return(quantile(x,probs = seq(0, 1, 0.025))[40])}
-#                            , center_pattern   = median
-         , title_str = NULL
-         , type = "plot_parcoord"){
-   # RETRIEVE GLOBAL SETTINGS, AND VISUALIZATION PARAMETERS
-   settings             <- attr(canalysis_data,"settings")
-   # MAKE LABELLED DATA_SET
-   labelled_data        <- as.matrix(cbind(canalysis_data,class=map(model[["z"]])))
-   # DETERMINES ROW AND COLUMN ORDERINGS OF THE 'CENTER' PATTERN
-   center_pattern       <- compute_plot_data(labelled_data,plot_data_fun[[1]])
-   cluster_dendro       <- hclust(dist(center_pattern))
-   var_dendro           <- hclust(dist(t(center_pattern)))
-   center_pattern       <- center_pattern[cluster_dendro$order, rev(sort(colnames(center_pattern)))]
-   # SET PARCOORD AND LEGEND COLOR SETTINGS 
-   color_settings       <- get_coloring_scheme(labelled_data)
-   # TITLE:     DEFINE VISUALIZATION TITLE 
-   # 
+`get_plot_fun` <-
+function( type  = "plot_parcoord" 
+        , cdata = NULL
+        , title = NULL
+        , xlim  = c(-3,3)
+        , xy    = c(-2.2,0) 
+        , cex   = 0.9
+        , pattern ="mean"
+        , color_gradient = brewer.pal(11,"RdBu")){
    if(type == "plot_parcoord"){
-      # FOR PARCOORD, LIMIT THE VISU TO THE VAR OF SUCH A VIGNETTE
-      visu_var          <- row.names(settings[settings[,"visu_groups"] == title_str,])
-      # COMPUTE THE DATA_PLOT
-      plot_data            <- list()
-      title_str         <- paste2("(",model[["modelName"]],",",model[["G"]],") ", title_str)
-      for(fun_name in names(plot_data_fun))
-         plot_data[[fun_name]] <- compute_plot_data(as.matrix(labelled_data[,c(visu_var,"class")]),plot_data_fun[[fun_name]])
-      #
-      plot_fun <- get_plot_fun_parcoord(def_visu_params = canalysis_config, def_color_sel = color_settings, def_T_s = settings[visu_var,],def_title_prefix = title_str)
+      cfun_parcoord     <- c()
+      for(v in unique(as.character(attr(cdata,"settings")[,"visu_groups"]))){
+         T_s            <- attr(cdata,"settings")[attr(cdata,"settings")[,"visu_groups"] == v,]
+         lfun           <- eval(call("plot_parcoord",xlim = xlim , cex = cex , title = v, T_s = T_s , pattern = pattern))
+         cfun_parcoord  <- c(cfun_parcoord, lfun)
+      }
+      return(cfun_parcoord)
    }
-   if(type == "plot_image"){
-      plot_data <- list(center_pattern=center_pattern)
-      plot_fun  <- get_plot_fun_image(def_visu_params = canalysis_config,def_title_prefix = title_str)
-   }
-   if(type == "plot_legend"){
-      plot_data <- list(class_count = table(labelled_data[,"class"]))
-      plot_fun  <- get_plot_fun_legend(def_visu_params = canalysis_config, def_color_settings = color_settings)
-   }
-   if(type == "plot_dendro_cluster"){
-      plot_data <- list(cluster_dendro = cluster_dendro)
-      plot_fun  <- get_plot_fun_dendro(def_visu_params = canalysis_config,def_title_prefix = title_str)
-   }
-   if(type == "plot_dendro_var"){
-      plot_data <- list(var_dendro = var_dendro)
-      plot_fun  <- get_plot_fun_dendro(def_visu_params = canalysis_config,def_title_prefix = title_str)
-   }
-   # CONSTRUCT THE DATA STRUCTURE
-   plot_data_out <- structure(plot_data, plot_fun = plot_fun, class = "plot_data")
-   return(plot_data_out)
+   if(type == "plot_image")            
+      return(
+         function(cmodel, apattern = pattern, acolgrad = color_gradient, atitle = title, acex = cex){
+               x <- attr(cmodel,"pattern")[[apattern]]
+               image(1L:nrow(x), 1L:ncol(x), x, xlim = 0.5 + c(0, nrow(x)), ylim = 0.5 + c(0, ncol(x)), axes = FALSE, 
+                        xlab = "", ylab = "", col=acolgrad, main=atitle,add=FALSE)
+               axis(2, 1L:ncol(x), labels = colnames(x), las = 2, line = -0.5, tick = 0, cex.axis = acex)
+               axis(1, 1L:nrow(x), labels = row.names(x),las = 1, line = -0.5, tick = 0, cex.axis = acex)
+            })
+   if(type == "plot_legend")           
+      return(
+         function(cmodel, axy = xy){
+            pattern              <- attr(cmodel, "pattern")[["class_count"]]
+            for(g in 1:nrow(pattern)){
+               g_name      <- attr(cmodel,"cluster_colors")[g]
+               y1 <- y0    <- axy[2] + 5 * g / nrow(pattern)
+               x0          <- axy[1]
+               x1          <- 1.2 * axy[1]
+               arrows(x0, y0, x1, y1, col=attr(cmodel,"cluster_colors")[g], length=0, lwd=3)
+               text(x0+0.15, y1, labels=paste2(names(pattern)[g], " (",pattern[g],")"), pos=4)
+            }
+         })
+   if(type == "plot_dendro_cluster" | type == "plot_dendro_var")   
+        return( 
+           function(cmodel
+                ,  acex = cex
+                , atitle = title ){
+                     if(type == "plot_dendro_var") x <- attr(cmodel,"dendro_var")
+                     else                            x <- attr(cmodel,"dendro_cluster")
+                     plot(x, axes = FALSE, yaxs = "i", main=atitle, ylab=NULL,cex=acex)
+           })
 }
 
 `set_tdata` <-
-function(testimate=NULL,tfun=NULL,var=NULL){
+function(testimate=NULL,var=NULL){
   tdata_out <- structure(
        testimate
-     , tfun  = tfun
      , var   = var
      , class = "tdata")
   return(tdata_out)
@@ -1098,7 +731,7 @@ function(data){
 	return(list(data=data[siblingpair_list,],model=NULL,tfun="sibpairs"))
 }
 
-`statistics_lambdasibs` <-
+`stats_lambdasibs` <-
 function(data,class)
 {
    class <- map(class)
@@ -1157,7 +790,7 @@ function(data,class)
    return(list(out=t(s[,1:length(class_set)])))
 }
 
-`statistics_logodds` <-
+`stats_logodds` <-
 function(data,class,fun_midthreshold=median){
    #
    class  <- map(class)
@@ -1193,99 +826,17 @@ function(data,class,fun_midthreshold=median){
 
 
 `stratified_traintest_split` <-
-function(data,K=10,perc=0.7){
+function(data,K=10,perc=0.7,rseed = 6013){
    indexes <- list()
-   G <- length(table(data$class))
+   G <- length(table(data[,"class"]))
    for(g in 1:G){
-      strata_idx <- nrow(data[data$class == g,])
+      strata_idx <- nrow(data[data[,"class"] == g,])
       indexes[[g]] <- matrix(0,0,strata_idx * (1-perc)) 
-      set.seed(6013)
+      set.seed(rseed)
       for(k in 1:K)
             indexes[[g]] <- rbind(indexes[[g]],sample(1:strata_idx)[1:(strata_idx * (1-perc))])
-      }
+   }
    return(list(indexes=indexes,K=K))
-}
-
-`summary_mclust2_BIC` <-
-function (object, data, G = NULL, modelNames = NULL, ...) 
-{
-    dimData             <- dim(data)
-    oneD                <- is.null(dimData) || length(dimData[dimData > 1]) == 
-        1
-    if (!oneD && length(dimData) != 2) 
-        stop("data must be a vector or a matrix")
-    if (oneD) {
-        data            <- drop(as.matrix(data))
-        n               <- length(data)
-        d               <- 1
-    }
-    else {
-        data            <- as.matrix(data)
-        n               <- nrow(data)
-        d               <- ncol(data)
-    }
-    initialization      <- attr(object, "initialization")
-    hcPairs             <- initialization$hcPairs
-    subset              <- initialization$subset
-    prior               <- attr(object, "prior")
-    control             <- attr(object, "control")
-    warn                <- attr(object, "warn")
-    oldClass(object)    <- NULL
-    attr(object, "prior")               <- attr(object, "warn") <- NULL
-    attr(object, "modelNames")          <- attr(object, "oneD") <- NULL
-    attr(object, "initialization")      <- attr(object, "control") <- NULL
-    d                   <-      if (is.null(dim(data))) 1
-                                else ncol(data)
-    if (is.null(G)) 
-        G               <- dimnames(object)[[1]]
-    if (is.null(modelNames)) 
-        modelNames      <- dimnames(object)[[2]]
-    bestBICs            <- pickBIC(object[as.character(G), modelNames, drop = FALSE], k = 3)
-    if(is.na(bestBICs)[1])
-    	return(NULL)
-    temp                <- unlist(strsplit(names(bestBICs)[1], ","))
-    bestModel           <- temp[1]
-    G                   <- as.numeric(temp[2])
-    if (G == 1) {
-        out             <- mvn(modelName = bestModel, data = data, prior = prior)
-        ans             <- c(list(bic = bestBICs, classification = rep(1, n), uncertainty = rep(0, n)), out)
-        orderedNames    <- c("modelName", "n", "d", "G", "bic", "loglik", "parameters", "z", "classification", "uncertainty")
-        return(structure(ans[orderedNames], bestBICvalues = bestBICs, 
-                prior = prior, control = control, initialization = initialization, class = "summary_mclust2_BIC"))
-    }
-    if (is.null(subset)) {
-        if (d > 1 || !is.null(hcPairs)) {
-            z           <- unmap(hclass(hcPairs, G))
-        }
-        else {
-            z           <- unmap(qclass(data, G))
-        }
-        out             <- me(modelName = bestModel, data = data, z = z, prior = prior, control = control, warn = warn)
-    }
-    else {
-        if (d > 1 || !is.null(hcPairs)) {
-            z           <- unmap(hclass(hcPairs, G))
-        }
-        else {
-            z           <- unmap(qclass(data[subset], G))
-        }
-        ms              <- mstep(modelName = bestModel, prior = prior, z = z, data = as.matrix(data)[subset, ], control = control, warn = warn)
-        es              <- do.call("estep", c(list(data = data), ms))
-        out             <- me(modelName = bestModel, data = data, z = es$z, prior = prior, control = control, warn = warn)
-    }
-    obsNames <- if (is.null(dim(data))) {
-        names(data)
-    }
-    else {
-        dimnames(data)[[1]]
-    }
-    classification      <- map(out$z)
-    uncertainty         <- 1 - apply(out$z, 1, max)
-    names(classification) <- names(uncertainty) <- obsNames
-    ans                 <- c(list(bic = as.vector(bestBICs[1]), classification = classification, uncertainty = uncertainty), out)
-    orderedNames <- c("modelName", "n", "d", "G", "bic", "loglik", "parameters", "z", "classification", "uncertainty")
-    structure(ans[orderedNames], bestBICvalues = bestBICs, prior = prior, 
-        control = control, initialization = initialization, class = "summary_mclust2_BIC")
 }
 
 `today` <-
@@ -1309,9 +860,10 @@ function(data,tfun=list(function(x){return(0)},function(x){return(do.call('+',x)
    else 
       testimate         <- as.numeric(tdata)
    vdata                <- tfun[[2]](list(data,testimate))
-   tdata_out            <- set_tdata(testimate=testimate,tfun=tfun,var=attr(tdata,"var"))
+   tdata_out            <- set_tdata(testimate=testimate,var=attr(tdata,"var"))
    return(list(data=vdata,tdata=tdata_out))
 }
+
 
 `transform_AVG` <-
 function(data,tdata){
@@ -1378,7 +930,7 @@ function(data, tdata, tformula){
       print(tformula)
       tdata_lm          <- lm(as.formula(tformula),data=data)
       tdata_lm[["print"]]<- tformula
-      tdata             <- set_tdata(tdata_lm,tfun="transform_adjust",var=attr(tdata,'var'))
+      tdata             <- set_tdata(tdata_lm,var=attr(tdata,'var'))
       # AS THE VARS WHICH ARE NOT INVOLVED IN THE CANALYSIS MAY HAVE MISSING
       # VALUES, TO PRESERVE THE NA'S WE REBUILD A MATRIX DATA STRUCTURE WHICH
       # SERVES TO INDEX PROPERLY THE RESIDUALS. AND WE RETURN A SIMPLE NUMERIC 
@@ -1393,23 +945,24 @@ function(data, tdata, tformula){
    return(list(data=vdata,tdata=tdata))
 }
 
-`transform_canalysis_data` <-
-function(data,settings){
-   tdata_out <- list()
+`transform_cdata` <-
+function(data,settings,tdata=NULL){
+   if(is.null(tdata)) tdata <- list()
    # FOR EACH VAR
    for(var in row.names(settings)){
-      tdata_out[[var]]  <- list()
+      tdata_idx                 <- which(names(tdata) == var)
+      if(length(tdata_idx) == 0) 
+         tdata[[var]]  <- list()
       # USE (MULTIPLE)-SPACES AS SEPARATOR BETWEEN TRANSFORMATION FUNCTIONS
-      fun_transform     <- strsplit(settings[var,"fun_transform"],"[ ]+")[[1]]
+      fun_transform             <- strsplit(settings[var,"fun_transform"],"[ ]+")[[1]]
       for(lfun in fun_transform){
          # IN CASE 'LFUN' AS AN INSIDE PARAMETER, RETRIEVE IT (1) REPLACE ALL
          # ('\") BY SPACES AND THEN (2) SPLIT
          lfun                   <- strsplit(gsub("[('\")]"," ",lfun),"[ ]+")[[1]]
-         # IF NO TDATA IS DEFINED, THEN INIT ONE TOi USE AS PATTERN WITH 'VAR'
-         # SET
-         tdata_var_lfun         <- attr(data,"tdata")[[var]][[lfun[1]]]
-         if(is.null(tdata_var_lfun))
-            tdata_var_lfun      <- set_tdata(testimate=NULL,tfun=NULL,var=var)
+         if(length(tdata_idx) == 0)
+            tdata_var_lfun      <- set_tdata(testimate=NULL,var=var)
+         else
+            tdata_var_lfun      <- tdata[[var]][[lfun[1]]]
          arg_list               <- list(data,tdata=tdata_var_lfun)
          # IF LFUN HAS SOME ARGUMENTS, WE APPEND THEM TO THE ARGUMENT LIST
          if(!is.na(lfun[2]))
@@ -1419,10 +972,10 @@ function(data,settings){
          # UPDATE THE MAIN DATA FRAME WITH THE VECTOR
          data[,var]             <- var_result[["data"]]
          # KEEP RECORD OF EACH INDIVIDUAL TRANSFORMATION FOR THE 'VAR'
-         tdata_out[[var]][[lfun[1]]] <- var_result[["tdata"]]
+         tdata[[var]][[lfun[1]]] <- var_result[["tdata"]]
       }
    }
-   return(list(data=data,tdata=tdata_out))
+   return(list(data=data,tdata=tdata))
 }
 
 `transform_sibordering` <-
@@ -1435,72 +988,5 @@ function(data){
       }
    }
    return(data[data$member <= 2,])
-}
-
-`variable_graphic_histograms` <-
-function(data, which_data = NULL ){
-   # GET CANALYSIS DATA
-   ldata        <- get_canalysis_data(data, which_data = which_data)
-   ldata        <- as.data.frame(ldata)
-   hist_list    <- hist_stats <- list()
-   hist_counts  <- c()
-   models       <- attr(data,"model")
-   # INIT PLOTTING REGION
-   par('mai'=c(0.5,0.5,0.5,1),'mfrow'=c(4,5))
-   # LOOP OVER VARIABLES SELECTED FOR THE CANALYSIS
-   for(i in colnames(ldata))
-   {
-      hist_list[[i]]  <- hist(ldata[,i],plot=FALSE)
-      local_stat_txt <- ""
-      hist_stats[[i]] <- list(txt="",xlim=list(),ylim=list())
-      for(j in names(models)){
-         local_model <- models[[j]][["model"]][[i]]
-         if(models[[j]][["type"]] == "lm")
-            local_stat_txt <- paste2(local_stat_txt,local_model[["formula"]],"\n")
-         else
-            local_stat_txt <- paste2(local_stat_txt,sprintf("%1.2f",local_model[[1]]),", ")
-      }
-      local_stat_txt <- paste2(local_stat_txt,length(table(ldata[,i]))," distinct values")
-      hist_stats[[i]][["txt"]] <- local_stat_txt
-      hist_stats[[i]][["xlim"]] <- c(min(ldata[,i],na.rm=TRUE),max(ldata[,i],na.rm=TRUE))
-#           hist_stats[[i]][["xlim"]] <- c(quantile(data.matrix(ldata[,i]),probs=c(0.05),na.rm=TRUE),
-#                quantile(data.matrix(ldata[,i]),probs=c(0.95),na.rm=TRUE))
-      hist_stats[[i]][["ylim"]] <- range(hist_list[[i]][["counts"]])
-   }
-   #
-   for(i in 1:ncol(ldata))
-   {
-      par('lab'=c(3,3,3),  # number of ticks
-            'mar'=c(2.5,2.5,1.5,1) # margins bottom,left,top,right
-            )
-      plot(hist_list[[i]],
-            main=dimnames(ldata)[[2]][i],
-            xlab="",ylab="",xlim=hist_stats[[i]][["xlim"]],ylim=hist_stats[[i]][["ylim"]]
-            #,ylog=TRUE
-            ) #!!!!
-      text(x=mean(hist_stats[[i]][["xlim"]]),y=hist_stats[[i]][["ylim"]][2]*0.85,hist_stats[[i]][["txt"]])
-      }
-}
-
-`variable_graphic_report` <-
-function(data,which_data=NULL,prefix=NULL){
-   if(class(data) != "canalysis_data") {
-      print("Error (variables_graphic_report): You must provide data of type canalysis_data")
-      break ;
-   }
-   else {
-      # CORRELATION MATRIX AND ABSOLUTE VALUED CORRELATION MATRIX TAKEN AS A
-      # DISTANCE MATRIX TO PLOT A DENDROGRAM WHICH ILLUSTRATES OUTCOME'S RELATION
-      ldata     <- get_canalysis_data(data, which_data = which_data)
-      ldata     <- as.data.frame(ldata[1:nrow(ldata),])
-      cor_mat   <- cor(ldata,use="pairwise.complete.obs")
-      write.table(cor_mat,file=paste2(prefix,"Correlation_Matrix.csv"),dec=",",sep=";")
-      # BOXPLOTS SUMMARY DITRIBUTIONAL SHAPE OF THE OUTCOMES BY THEIR BOX PLOTS
-      # 1ST AND 3RD QUARTILES, MEDIAN, 95% BOUNDS, + EXTREMES BEYOND THE 95%
-      par(mfrow=c(1,1),'mai'=c(1.2,0.7,0.7,0.7),new=FALSE)
-      boxplot(ldata,'las'=2,main=paste2(prefix,"Boxplot"))
-      # PLOT HISTOGRAMS FOR EACH VARIABLE
-      variable_graphic_histograms(data,which_data)
-   }
 }
 

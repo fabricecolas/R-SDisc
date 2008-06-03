@@ -10,7 +10,7 @@ the transformed data set but it also data set in its original form. It also
 defines the models to re-run the transformation on new data given their
 modeling parameters.}
 \usage{ set_canalysis_data(data, data_o = NULL, tdata = NULL, settings,
-init_fun = list(init_data_cc)) }
+init_fun = list(init_data_cc), prefix ="") }
 
 \arguments{
   \item{data}{ A data set (mandatory),}
@@ -20,6 +20,8 @@ init_fun = list(init_data_cc)) }
   all variables (mandatory),}
   \item{init_fun}{ A \code{canalyis_data} constructor initialization function
   to run before any further processing (\code{na.omit}).}
+  \item{prefix}{ A prefix which we use for all file outputs (Postscript and
+  CSV). By default, we use the current date as prefix.}
 }
 \details{
 In first place, the constructor stores a copy of the data set in \code{data_o}.
@@ -47,9 +49,7 @@ transformation name in its sequential order of application.
   \item{settings}{ A character matrix defining the transform and the variables
   for the cluster analysis,}
  }
-\references{ }
 \author{ Fabrice Colas }
-\seealso{ \code{\link{set_calgo}}, \code{\link{set_canalysis_config}},
-\code{\link{set_canalysis_data}}, \code{\link{set_canalysis_result}},
-\code{\link{set_plot_data}}, \code{\link{set_tdata}} }
-%\keyword{ ~kwd1 }
+\seealso{ \code{\link{set_canalysis_data}}, \code{\link{set_cresult}},
+\code{\link{set_tdata}} }
+\keyword{}

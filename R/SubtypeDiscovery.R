@@ -917,10 +917,10 @@ function(data,class)
 `stats_logodds` <-
 function(data,class,fun_midthreshold=median){
    #
+   nclass <- ncol(class)
    class <- map(class, warn=FALSE)
    ldata <- cbind(data,class=class)
    sgroup <- as.data.frame(na.omit(attr(data,"settings")[,c("visu_groups","group")]))
-   nclass <- ncol(class)
    s <- matrix(0,nclass, length(unique(sgroup[,"group"])),
                 dimnames=list(1:nclass, sort(unique(sgroup[,"group"]))))
    class_vector <- 1:nclass

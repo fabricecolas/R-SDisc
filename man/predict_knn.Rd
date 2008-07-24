@@ -1,0 +1,22 @@
+\name{predict_knn}
+\alias{predict_knn}
+\title{ Returns a k-NN prediction given a training set (the model)}
+\description{ Returns a k-NN prediction given a training set which for layering
+purpose, acts internally as a \code{model}.  }
+\usage{ predict_knn(model, testset) }
+\arguments{
+  \item{model}{ The training set referred to as \code{model},}
+  \item{testset}{ The set of examples to classify referred to as the \code{testset}.}
+}
+\seealso{
+\code{\link{model_knn}},
+\code{\link{model_naive_bayes}},
+\code{\link{model_svm}},
+\code{\link{predict_knn}},
+\code{\link{predict_naive_bayes}},
+\code{\link{predict_svm}},
+\code{\link[e1071:e1071-package]{knn}},
+\code{\link[e1071:e1071-package]{naiveBayes}}, 
+\code{\link[e1071:e1071-package]{svm}}}
+\author{ Fabrice Colas }
+\keyword{}

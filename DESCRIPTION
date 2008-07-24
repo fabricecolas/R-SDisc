@@ -1,14 +1,11 @@
 Package: SubtypeDiscovery
 Type: Package
-Title: What the package does (short line)
-Version: 1.9
+Title: An R package workflow for the discovery of subtypes by cluster analysis 
+Version: 1.10
 Date: 2008-05-06
 Author: Fabrice Colas
 Maintainer: Fabrice Colas <fcolas@liacs.nl>
-Description: Selected methods for characterization, comparison and
-        evaluation of cluster models for medical research.
-Depends: R (>= 2.6.0), mclust, stats, utils, RColorBrewer, abind,
-        e1071, R2HTML
+Description: Selected methods for characterization, comparison and evaluation of cluster models for medical research.
+Depends: R (>= 2.5.1), mclust, stats, utils, RColorBrewer, abind, e1071, R2HTML
 License: All rights reserved
-Packaged: Thu Jun 5 18:10:03 2008; fcolas
-Built: R 2.7.0; ; 2008-06-05 18:18:04; windows
+Packaged: Thu Jul 24 07:59:47 2008; fcolas

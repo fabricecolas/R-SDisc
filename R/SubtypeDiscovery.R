@@ -242,16 +242,16 @@ function(data){
    return(conf_mat)
 }
 
-`get_cdata_princomp` <- function(x, cumproportion=0.95, scale=TRUE, center=FALSE){
+`get_cdata_prcomp` <- function(x, cumproportion=0.95, scale=TRUE, center=FALSE){
    # RETRIEVE PREVIOUS PARAMETERS
    s1 <- as.matrix(attr(x,"settings"))
    prefix <- gsub('[0-9]{4}-[0-9]{2}-[0-9]{2}_','',paste2(attr(x,"prefix"),"_ON_PRCOMP_"))
    # PRINCIPAL COMPONENTS, 95%
-   pcomp <- princomp(x[,get_canalysis_variables(s1)], scale=scale, center=center)
+   pcomp <- prcomp(x[,get_canalysis_variables(s1)], scale=scale, center=center)
    vars <- pcomp[["sdev"]]^2
    vars <- vars/sum(vars)
-   first_comps <- names(vars)[cumsum(vars) < cumproportion]
-   pcomp <- pcomp[["scores"]][,first_comps]
+   first_comps <- (cumsum(vars) < cumproportion)
+   pcomp <- predict(pcomp)[,first_comps]
    df2 <- cbind(x, pcomp)
    # SETTINGS
    s2 <- generate_cdata_settings(df2)
@@ -266,6 +266,34 @@ function(data){
    max_heatmap <- max(as.numeric(s2[,"heatmap_ycoord"]),na.rm=TRUE)
    s2[new_names,"heatmap_ycoord"] <- as.character((max_heatmap+1):(max_heatmap+length(new_names)))
    x2 <- set_cdata(data=df2, settings=s2, prefix=prefix, data_o=attr(x,'data_o'))
+   return(x2)
+}
+
+`get_cdata_princomp` <- function(x, cumproportion=0.95, scale=TRUE, center=FALSE){
+   # RETRIEVE PREVIOUS PARAMETERS
+   s1 <- as.matrix(attr(x,"settings"))
+   prefix <- gsub('[0-9]{4}-[0-9]{2}-[0-9]{2}_','',paste2(attr(x,"prefix"),"_ON_PRCOMP_"))
+   # PRINCIPAL COMPONENTS, 95%
+   pcomp_m <- princomp(x[,get_canalysis_variables(s1)], scale=scale, center=center)
+   vars <- pcomp_m[["sdev"]]^2
+   vars <- vars/sum(vars)
+   first_comps <- names(vars)[cumsum(vars) < cumproportion]
+   pcomp <- pcomp_m[["scores"]][,first_comps]
+   df2 <- cbind(x, pcomp)
+   # SETTINGS
+   s2 <- generate_cdata_settings(df2)
+   s2[row.names(s1),] <- s1[,colnames(s2)]
+   s2[,"in_canalysis"] <- "FALSE"
+   new_names <- row.names(na.omit(s2[s2[,"visu_ycoord"] == "NA",]))
+   s2[new_names,"in_canalysis"] <- "TRUE"
+   s2[new_names,"group"] <- new_names
+   s2[new_names,"visu_groups"] <- "PCA"
+   s2[new_names,"visu_ycoord"] <- 10*(1:length(new_names)/length(new_names))
+   s2[new_names,"fun_transform"] <- "transform_AVG transform_SIGMA"
+   max_heatmap <- max(as.numeric(s2[,"heatmap_ycoord"]),na.rm=TRUE)
+   s2[new_names,"heatmap_ycoord"] <- as.character((max_heatmap+1):(max_heatmap+length(new_names)))
+   x2 <- set_cdata(data=df2, settings=s2, prefix=prefix, data_o=attr(x,'data_o'))
+   attr(x2,'princomp') <- pcomp_m
    return(x2)
 }
 
@@ -368,6 +396,7 @@ function(data,settings)
 
 `get_long2wide_table`          <- function(x, fun_aggregate=mean, 
    var_aggregate="BIC", var_x="G", var_y="modelName"){
+   # x <- na.omit(x)
    tmp <- aggregate(x[, var_aggregate], by=list(var_x=x[,var_x],
             var_y=x[,var_y]), FUN=fun_aggregate)
    tmp <- reshape(tmp, idvar="var_x", timevar="var_y", direction="wide")
@@ -507,7 +536,7 @@ function(x, device = "PS", query = NULL, img_size = c(1024,1024),...) {
       if(!is.na(attr(x[[i]],"model")$loglik)){
          par(mfrow=mfrow, 'las'=1,'mai'=c(0.2,0.7,0.5,0.7),new=FALSE)
          for(fun_plot in unlist(attr(x,"fun_plot")))
-            fun_plot(x[[i]])
+            try(fun_plot(x[[i]]))
       }
    }
    if(!is.null(device)) 
@@ -801,8 +830,9 @@ function(xlim = c(-3,3)
 } 
 
 `get_plot_fun` <- function(type="plot_parcoord", title=NULL, xlim=c(-3, 3),
-   xy=c(-2.2, 0), cex=0.9, pattern="mean", 
-   color_gradient=colorRampPalette(rev(brewer.pal(11,"RdBu")))(32)){
+   xy=c(-2.2, 0), cex=0.9, pattern="mean",
+   color_gradient=rev(brewer.pal(9,"RdBu"))){
+#   color_gradient=colorRampPalette(rev(brewer.pal(11,"RdBu")))(8)){
    return(function(cdata){
       return(get_plot_fun2(type=type, cdata=cdata, xlim=xlim, xy=xy, cex=cex,
          title=title, pattern=pattern, color_gradient=color_gradient))

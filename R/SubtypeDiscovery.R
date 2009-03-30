@@ -111,7 +111,7 @@ function(x,y){
    m <- rbind(m,"")
    m_html <-  rbind(m_html,"")
    row.names(m)[nrow(m)] <- row.names(m_html)[nrow(m_html)] <- "Cramer's V"
-   m_html[nrow(m_html),1] <- html_format_numeric(V,fmt='%.3f') 
+   m_html[nrow(m_html),1] <- html_format_numeric(V,fmt='%.2f') 
    m[nrow(m),1] <- V
    # T-TEST TO EVALUATE WHETHER THE DIFFERENCES BETWEEN THE MAP CONTINGENCY
    # TABLE AND THE JOINT PROBABILITY DISTRIBUTION OF THE TWO FACTORS IS A
@@ -119,7 +119,7 @@ function(x,y){
    m <- rbind(m,"")
    m_html <-  rbind(m_html,"")
    row.names(m)[nrow(m)] <- row.names(m_html)[nrow(m_html)] <- "t-test (mapping)"
-   m[nrow(m),1] <- m_html[nrow(m_html),1] <- map_rand_err_test$p.value
+   m[nrow(m),1] <- m_html[nrow(m_html),1] <- sprintf("%.1e",map_rand_err_test$p.value)
    # TO QUICKEN THE LATER OPENING OF THE MANY CSV FILES,  WE REDUCE THE NUMBER
    # OF ZEROS TO CLEAR MANUALLY. IN WRITE.CSV2 'NA' ARE SUBSTITUTED BY EMPTY
    # STRINGS
@@ -542,6 +542,24 @@ function(x, device = "PS", query = NULL, img_size = c(1024,1024),...) {
    if(!is.null(device)) 
       dev.off()
    return(plot_file)
+}
+
+`html_format_cells` <- function(x, fmt="%.2f", quant_threshold=quantile(c(-1,1),probs=seq(0,1,0.333))){
+   x_nbr <- as.numeric(x) 
+   col_vector <- brewer.pal(length(quant_threshold)+1,"OrRd")
+   if(!is.na(x_nbr)){
+      #x <- gsub("\\.00","",gsub("^0\\.",".",sprintf(fmt,x)))
+      x <- sprintf(fmt,x)
+      for(i in 1:length(quant_threshold)){
+         if(x_nbr <= quant_threshold[i])
+            x <- paste2("<font style='background-color:",col_vector[1+i],";text-align:right;'>",x,"</font>")
+         if((i == length(quant_threshold)) && (x_nbr >= quant_threshold[i]))
+            x <- paste2("<font style='background-color:",col_vector[1+i],";text-align:right;'>",x,"</font>")
+      }
+   }
+   else
+      x <- ""
+   return(x)
 }
 
 `html_format_numeric` <- function(x, fmt="%.2f", col_threshold=c(-1,1)){
@@ -1007,14 +1025,17 @@ function(data,class,fun_midthreshold=median){
 }
 
 `stats_chemoinf_chi2test` <- 
-function(data, class, class_col='Class',probs=0.95){
+function(data, class, class_col='Class', probs=seq(0,1,0.4)[2:3]){
    ldata <- cbind(data, class=map(class))
    ldata <- cbind(ldata, ChemoClass=as.character(attr(data,'data_o')[row.names(ldata),class_col]))
    s_test <- chisq.test(xtabs( ~.,ldata[,c("class","ChemoClass")]), simulate.p.value=TRUE)
    s <- cbind(s_test[["residuals"]]^2, chi2test=NA)
    s[1:2,"chi2test"] <- c(sprintf('%.1e',s_test[["p.value"]]), sprintf('%.1f',s_test[["statistic"]]))
-   s_out <- apply(s, 1:2, html_format_numeric, fmt='%.1f', 
-      col_threshold=c(-1,quantile(s_test[["residuals"]]^2,probs=probs)[[1]]))
+   colnames(s)[match("chi2test",colnames(s))] <- paste2(class_col, " (residual)")
+   # s_out <- apply(s, 1:2, html_format_numeric, fmt='%.1f', 
+   #   col_threshold=c(-1,quantile(s_test[["residuals"]]^2,probs=probs)[[1]]))
+   s_out <- apply(s, 1:2, html_format_cells, fmt='%.1f' 
+      , quant_threshold=quantile(as.numeric(s_test[["residuals"]]^2), probs=probs))
    return(list(out=s_out,s))
 }
 
@@ -1149,6 +1170,8 @@ function(data, tdata, tformula){
 
 `transform_cdata` <-
 function(data,settings,tdata=NULL){
+   # BEFORE TRANSFORMING THE DATA, CONVERT IT TO NUMERIC
+   data <- data.matrix(data)
    if(is.null(tdata)) tdata <- list()
    settings <- as.matrix(settings)
    # FOR EACH VAR

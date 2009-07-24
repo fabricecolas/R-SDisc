@@ -20,4 +20,3 @@ risk increases two-fold. Finally, a $\lambda_{sibs} $ shows significant as its
    \item{class}{ A class label.}
 }
 \author{ Fabrice Colas, Jeanine Houwing-Duistermaat}
-\keyword{}

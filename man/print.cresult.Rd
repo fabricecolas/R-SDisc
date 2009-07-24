@@ -4,7 +4,7 @@
 \description{ For objects of type (\code{cresult}), this generic
 print function reports cross comparison of the most likely cluster results
 (\code{cross_compare_models}).}
-\usage{ print.cresult(x, html=TRUE, img=TRUE, img_size=c(1024,1024), ...) }
+\usage{ \method{print}{cresult}(x, html=TRUE, img=FALSE, img_size=c(1024,1024), ...) }
 \arguments{
    \item{x}{ An object of type \code{cresult},}
    \item{html}{ A logicial value (\code{...}) telling whether we should
@@ -16,4 +16,3 @@ print function reports cross comparison of the most likely cluster results
 }
 \author{ Fabrice Colas }
 \seealso{\code{\link{cross_compare_models}}, \code{\link{set_cresult}}}
-\keyword{}

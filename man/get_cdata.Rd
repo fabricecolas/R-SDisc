@@ -13,4 +13,3 @@ cluster analysis.  }
 cluster analysis.  }
 \author{ Fabrice Colas }
 \seealso{ \code{\link{get_canalysis_variables}}, \code{\link{set_cdata}}}
-\keyword{}

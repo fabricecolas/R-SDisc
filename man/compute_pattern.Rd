@@ -24,5 +24,3 @@ omitting them.  }
   \item{comp1 }{Description of 'comp1'}
 }
 \author{ Fabrice Colas }
-\seealso{ }
-\keyword{}

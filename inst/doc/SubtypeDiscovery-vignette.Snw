@@ -1,0 +1,212 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[left=2cm,top=2cm,right=2cm,nohead,nofoot]{geometry} 
+\title{\textsf{R SubtypeDiscovery}: a data mining scenario for the inference of
+subtypes by cluster analysis}
+\author{F. Colas}
+
+
+\begin{document}
+
+\maketitle
+
+\section*{Introduction}
+
+In the study of phenomena characterized by heterogeneity, an important and
+general data analysis problem is the search for more homogeneous subtypes in
+the data distribution. In clinical research on Osteoarthritis, Parkinson's
+disease, major depressive and anxiety disorders, or glioblastoma and metastasis
+discrimination, the identification of more homogeneous patient subtypes may
+contribute to understand more specifically the underlying mechanisms of the
+these pathologies, and thus help to develop tailored prevention strategies and
+treatments. 
+
+To advance research on these phenomena, we developed a data-mining scenario
+designed to infer subtypes by cluster analysis \cite{colas09b,colas09a}. This
+scenario is referred to as the \textsf{SubtypeDiscovery} and it was implemented
+as an \textsf{R} package.  As a result, other research teams can benefit of
+this tested scenario to perform their subtyping analyses. With this package,
+analyses are straightforward and therefore accessible to many investigators.
+Furthermore, the well-defined data structures and the public availability of
+the package greatly enhance reproducibility. 
+
+The scenario features various data preparation techniques, an approach that
+repeats data modeling in order to select for the number of subtypes and/or the
+type of model, with a selection of methods to characterize, compare and
+evaluate the most likely mixture models. The combination of steps of a typical
+subtype discovery analysis outlines as follows:\\ 
+\begin{enumerate}
+\item data configuration, processing and exploratory data analysis (EDA),\\
+\item model based clustering \cite{mclust02,mclust06} repeated from different
+initialization points,\\
+\item selection of the top models based on a Bayesian Information Criterion
+ranking,\\
+\item cross-comparison of those mixture models and characterization of their
+subtypes,\\
+\item relevance evaluation of each subtype.\\
+\end{enumerate}
+
+
+\section*{Prepare the data, EDA}
+Before loading the \textsf{SubtypeDiscovery} package with the usual
+\texttt{library} command, package dependencies must be resolved. We install the
+\texttt{mclust}, \texttt{RColorBrewer}, \texttt{abind}, \texttt{e1071},
+\texttt{class} and \texttt{R2HTML} package and then, load the library, using
+the following commands:
+<<eval=FALSE>>=
+install.packages(c('mclust','RColorBrewer','abind','e1071','class'))
+@ 
+<<echo=TRUE>>=
+library(SubtypeDiscovery)
+@ 
+
+The \textsf{SubtypeDiscovery} package includes a public chemoinformatics
+dataset made available by Ed O Cannon, for which more information can be
+obtained from the man page (see \texttt{?wada2008}).  To search for subtypes in
+this dataset, we start by loading it into the \textsf{R} environment. Then, we
+generate automatically a pre-filled \texttt{settings} file, which defines how
+\textsf{SubtypeDiscovery} must interpret the data. Yet, because variables may
+have an ordering, or because some variables should be left out of the
+clustering, or used in the validation stage, the file needs to be edited.
+For this reason, we save the \texttt{settings} into a \texttt{csv} file, and we
+will further edit it with a spreadsheet like Excel or Openoffice. 
+<<echo=TRUE>>=
+data(wada2008)
+settings <- generate_cdata_settings(wada2008)
+write.csv(settings, file='settings.csv')
+@ 
+Edit the settings file in a spreadsheet, save it, and read it back into the
+\textsf{R} environment.
+<<echo=TRUE>>=
+settings <- read.csv('settings.csv',row.names=1)
+@ 
+Along with the dataset, we stored a pre-edited settings file in
+\textsf{SubtypeDiscovery} and it is saved as \textsf{wada2008\_settings}. We
+retrieve it and show a few of its lines.  
+<<echo=TRUE>>=
+colnames(settings)
+data(wada2008_settings)
+wada2008_settings[c(1:3,53:54),]
+@ 
+We then proceed to the creation of the data container instantiation
+(\texttt{cdata}):
+<<echo=TRUE>>=
+wada2008_cdata <- set_cdata(data=wada2008[1:100,], settings=wada2008_settings, prefix='Wada2008')
+@ 
+An exploratory data analysis (EDA) can be made from the plot function of a
+\texttt{cdata} dataset. Because there may be a large number of boxplots,
+histograms and statistics, the output is redirected into a postscript file
+\texttt{YYYY-MM-DD\_PREFIX\_CDATA.ps}. 
+<<echo=TRUE>>=
+plot(wada2008_cdata)
+@ 
+\begin{center}
+<<results=tex,echo=FALSE>>=
+for(f in list.files('figures/', pattern='BB'))
+   cat("\\thispagestyle{empty}\n\\includegraphics[angle=270,width=\\linewidth]{figures/", f, "}\n\n", sep="")
+cat('\\newpage')
+for(f in list.files('figures/', pattern='H'))
+   cat("\\thispagestyle{empty}\n\\includegraphics[angle=270,width=\\linewidth]{figures/", f, "}\n\n", sep="")
+cat('\\newpage')
+@ 
+\end{center}
+\section*{Prepare the analysis and start the calculations}
+
+The dataset \texttt{cdata} is the only mandatory parameters of
+\texttt{set\_cresult}. Thus, with the other parameters set as default, it is
+possible to perform a sample subtype discovery analysis. In the case of the
+\texttt{wada2008} data, commands are as follows: 
+%<<eval=TRUE>>=
+<<eval=FALSE>>=
+wada2008_cresult <- set_cresult(cdata=wada2008_cdata)
+analysis(wada2008_cresult)
+@ 
+
+The output of \texttt{analysis} describes the sequence of calculations
+performed. First, there are the mixture modelling (\texttt{EII,VII}), the
+number of mixture components (\texttt{3,4,5}), and the random initialization
+integer (\texttt{6013,6014,6015}). Then, statistical patterns such as the
+empirical mean, the standard deviation, or other quantile statistics are
+estimated (\texttt{Patterns}). For each mixture model, by default, a euclidean
+distance based hierarchical clustering is performed on both the variables and
+the observations (\texttt{Dendros}), the \texttt{Patterns} are re-ordered accordingly
+(\texttt{Ordering}). Finally, statistics for each subtype are calculated during
+the \texttt{Stats} step, e.g. the odds ratios.  
+
+Once calculations are completed, the subtype discovery analysis
+(\texttt{cresult}) is stored on the hard drive into an \texttt{RData} file
+(\texttt{YYYY-MM-DD\_PREFIX\_IMAGE.RData}). Further, to enable post-hoc
+analysis of the discovered subtypes, the set of best mixture models is stored
+into \texttt{csv} files. These files report the likelihood of every element to
+belong to each mixture component, along with the component affectation. 
+
+Next, a graphical characterization of the different mixture models is
+realised. For the same reasons than before, because the number of graphics is
+pretty large, the result of the characterization is stored into an additional
+postscript file (\texttt{YYY-MM-DD\_PREFIX\_CRESULT.ps}). Last, to perform the
+statistical inference of the subtypes, a number of summary measures  are
+calculated on the set of BIC scores, cross-comprisons are performed between the
+most likely mixture models, showing in particular the joint distribution
+between these models, and thus, their consistency, etc. A report is assembled
+from these calculations and will assist the investigators in their inference
+(\texttt{Generate HTML report...}).  
+
+\paragraph{Optional parameters} \texttt{set\_cresult} does accept a number of
+additional parameters to adapt the calculations to the application area. Among
+these parameters, there is first the cluster modelling method (\texttt{cfun}),
+whose parameters are provided in \texttt{cfun\_params}. There is, too, the
+graphic characterization of the mixture models, which is defined by a
+\texttt{fun\_plot} parameter expecting a list of functions provided by
+\texttt{get\_plot\_fun}. With a similar mechanism, a number of statistical
+methods to characterize or evaluate the results of an analysis can be defined
+into the \texttt{fun stats} parameter, which expects a list of function, result
+of \texttt{get\_fun\_stats}. The parameter \texttt{nbr\_top\_models} specifies
+how many top-ranking models will be selected as likely and, thus, be
+cross-compared for consistency assessment.  Finally, a number of statistics to
+summary the set of BIC scores and the subtypes, may be defined as list of
+functions into the \texttt{fun\_bic\_pattern} and \texttt{fun\_pattern}
+parameters. More details in the man page of \texttt{?set\_cresult}.
+
+\section*{How to carry a statistical inference for subtypes?}
+
+
+\section*{Implementation}
+
+This scenario is implemented as the \textsf{R SubtypeDiscovyer} package.
+To implement these different steps, our package relies on three important containers:
+\begin{enumerate}
+\item \texttt{cdata} takes as input the data and its \texttt{settings},\\
+\item \texttt{cmodel} stores the cluster models,\\
+\item \texttt{cresult} stores the whole subtype discovery analysis. \\
+\end{enumerate}
+
+\section*{Concluding remarks}
+
+\begin{thebibliography}{9}
+
+\bibitem[Col09b]{colas09b} R SubtypeDiscovery to assist subtyping analyses in clinical
+research. F Colas, S van Rooden, I Meulenbelt, J J Houwing-Duistermaat, T van
+Veen and J N Kok in the Bioinformatics journal, Vol X, Number X, XXX 2009.
+
+\bibitem[Col09a]{colas09a} A Scenario Implementation in R for Subtype Discovery
+Examplified on Chemoinformatics Data. F Colas and I Meulenbelt and J J
+Houwing-Duistermaat and M Kloppenburg and I Watt and S M van Rooden and M
+Visser and H Marinus and Edward O Cannon and Andreas Bender and J J van Hilten
+and P E Slagboom and J N Kok, 3rd International Symposium on Leveraging
+Applications of Formal Methods, Verification and Validation (ISOLA'08), Greece.
+
+\bibitem[Col08]{colas08} Stability of Clusters for Different Time Adjustments in
+Complex Disease Research. F Colas and I Meulenbelt and J J Houwing-Duistermaat
+and M Kloppenburg and I Watt and S M van Rooden and M Visser and H Marinus and
+J J van Hilten and P E Slagboom and J N Kok, 30th Annual International IEEE
+EMBS Conference (EMBC'08), Vancouver, Canada 
+
+\bibitem[Fra02]{mclust02} Model-Based Clustering, Discriminant Analysis and Density
+Estimation. C Fraley and A E Raftery. In Journal of the American Statistical
+Association, Vol 97, 611-631, 2002.
+
+\bibitem[Fra06]{mclust06} {MCLUST} Version 3 for {R}: {N}ormal Mixture Modeling and
+Model-Based Clustering. C Fraley and A E Raftery. In technical report 504,
+Department of Statistics, University of Washington, September, 2006.
+\end{thebibliography}
+
+\end{document}

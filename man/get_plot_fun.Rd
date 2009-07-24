@@ -7,7 +7,7 @@ function which will itself take a single \code{cmodel} parameter. For
 additional details, see the returned ouput of \code{get_plot_fun2}.}
 \usage{ get_plot_fun(type="plot_parcoord", title=NULL, xlim=c(-3,3),
 xy=c(-2.2,0), cex=0.9, pattern="mean",
-color_gradient=colorRampPalette(rev(brewer.pal(11, "RdBu")))(32)) }
+color_gradient=rev(brewer.pal(9, "RdBu"))) }
 \arguments{
    \item{type}{ The type of plot function with values in (\code{plot_parcoord},
       \code{plot_image}, \code{plot_legend}, \code{plot_dendro_var},
@@ -27,4 +27,3 @@ color_gradient=colorRampPalette(rev(brewer.pal(11, "RdBu")))(32)) }
 \value{ Returns a function taking a single \code{cmodel} argument.  }
 \author{ Fabrice Colas }
 \seealso{\code{\link{get_plot_fun2}}, \code{\link{plot_parcoord}}, \code{\link{set_cresult}}}
-\keyword{}

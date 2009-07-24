@@ -21,4 +21,3 @@ CSV files its output.  }
 }
 \author{ Fabrice Colas }
 \seealso{ \code{\link{cross_compare_models}} }
-\keyword{}

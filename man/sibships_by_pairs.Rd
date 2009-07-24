@@ -9,4 +9,3 @@
   \item{data}{ ~~Describe \code{data} here~~ }
 }
 \author{ Fabrice Colas }
-\keyword{}

@@ -14,4 +14,3 @@ parameters.  }
 \value{ Returns a \code{tdata} structure.}
 \author{ Fabrice Colas }
 \seealso{ \code{\link{set_cdata}}, \code{\link{set_cresult}}, }
-\keyword{}

@@ -19,4 +19,3 @@ cluster analysis.  }
   object is stored in \code{attr(*,"settings")}.}
 }
 \author{ Fabrice Colas }
-\keyword{}

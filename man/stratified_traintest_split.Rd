@@ -15,4 +15,3 @@ proportions.}
   \item{rseed}{ For reproducibility of the result, we set he random seed.}
 }
 \author{ Fabrice Colas }
-\keyword{}

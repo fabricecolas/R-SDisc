@@ -5,7 +5,7 @@ function(x, device="PS", img=FALSE, html=TRUE){
    file_save <- paste2(attr(x,"prefix"),"_IMAGE.RData")
    cat("\nSave 'cresult' into ",file_save)
    save(list='x', file=file_save)
-   cat("\nWrite best models")
+   cat("\nWrite best models\n")
    write.cresult(x)
    cat("\nPlot cresult -> PS")
    plot(x, device=device)
@@ -24,6 +24,70 @@ function(class){
    out[1,1]     <- auuc
    out[1,2]     <- auuc_sd
    return(list(auuc = auuc, sd = auuc_sd, out = out))
+}
+
+
+
+`stability_analysis` <-
+function(x,q,rseed=6013,nnoise=10,nrep=10,ps=TRUE, ncolors=9,minmax=c(0.5,1)){
+   settings <- strsplit(q,',')[[1]]
+   cdata <- get_cdata(attr(x, "cdata"))
+   r <- list()
+   v <- matrix(NA,nnoise,nrep*(nrep-1)/2,dimnames=list(sprintf("%4f",(1/2)^(1:nnoise)),list()))
+   # NOISE LEVELS
+   for(sd_l in (1/2)^(1:nnoise)){ 
+      l <- sprintf("%4f",sd_l)
+      r[[l]] <- list()
+      for(ridx in 1:nrep){
+         s <- rseed+ridx
+         r[[l]][[s]] <- list()
+         set.seed(s)
+         Y <- cdata+matrix(rnorm(nrow(cdata)*ncol(cdata),sd=sd_l,mean=0),nrow(cdata),ncol(cdata))
+         r[[l]][[s]] <- fun_mbc_em(Y,modelName=settings[1],G=settings[2],rseed=as.numeric(settings[3]))
+         r[[l]][[s]][["Y"]] <- Y
+      }
+      tmp <- c()
+      for(ridx1 in 1:nrep){
+         s1 <- rseed+ridx1
+         for(ridx2 in 1:nrep){
+            s2 <- rseed+ridx2
+            if(ridx2>ridx1){
+               m <- as.table(ftable(r[[l]][[s1]]$labelling,r[[l]][[s2]]$labelling))
+               tmp <- c(tmp,sqrt(as.numeric(summary(m)["statistic"])/(as.numeric(summary(m)["n.cases"])*(min(dim(m))-1))))
+            }
+         }
+      }
+      v[l,] <- sort(tmp)
+   }
+   breaks <- seq(minmax[1],minmax[2],(minmax[2]-minmax[1])/ncolors)
+   if(ps){
+      postscript(paste2(attr(x,'prefix'),"_stability_analysis_",gsub(',','_',q),".ps"))
+      image(v,col=brewer.pal(ncolors,"Greys"),breaks=breaks,axes=FALSE,ylab='Association level V, quantiles',cex.lab=1.7)
+      contour(v,add=TRUE,labcex=1.3)
+      axis(1,at=seq(0,1,0.11),labels=sprintf("%.1f%%",100*as.numeric(row.names(v))),las=2,cex.axis=1.7)
+      axis(2,at=seq(0,1,0.2),labels=sprintf("%d%%",100*seq(0,1,0.2)),cex.axis=1.7)
+      title(paste(settings,sep="",collapse=" "))
+      graphics.off()
+   }
+   return(v)
+}
+
+`compare_transform` <-
+function(x,y,probs=seq(0,1,0.1)){
+   prefix               <- attr(x,"prefix")
+   m <- data.frame(attr(x,'cfun_params'),V=NA)
+   row.names(m) <- apply(as.matrix(m[,1:3]),1,paste,sep='',collapse=',') 
+   for(i in names(x)){
+      tmp <- table(data.frame(x=attr(x[[i]],'model')$labelling, y=attr(y[[i]],'model')$labelling))
+      tmp_summary <- summary(tmp)
+      n <- as.numeric(tmp_summary["n.cases"])
+      X2 <- as.numeric(tmp_summary["statistic"])
+      k <- min(dim(tmp))
+      m[i,'V'] <- sqrt(X2/(n*(k-1)))
+   }
+   m <- na.omit(m)
+   m_x <- xtabs(formula=V~modelName+G,aggregate(data.frame(V=m[,'V']),by=list(modelName=m[,'modelName'],G=m[,'G']),mean,na.rm=TRUE))
+   return(list(summary=m_x, m=m))
 }
 
 `compare_cresult` <-
@@ -225,21 +289,22 @@ function(z1, z2){
 }
 
 `generate_cdata_settings` <-
-function(data){
+function(data, grBreak=6){
    # DEFINE THE DEFAULT VALUES OF OUR CONF MATRIX
    conf_col_names <- list("group","in_canalysis","fun_transform","visu_groups","visu_ycoord","heatmap_ycoord")
    default_values <- c("factor_1",TRUE,"transform_AVG transform_SIGMA","var_group_1","NA","NA")
-   # in_canalysis? (TRUE/FALSE) 
-   #    Is the variable passed to the clustering algorithm?
-   # visu_groups (CHAR VECTOR) 
-   #    Group names, in use for the characterization by logodds and the
-   #    visualization.
-   # visu_ycoord? (INTEGER IN [1,10] OR NULL) 
-   #    Shall we involve this variable in the parallel coordinates, if this is
-   #    not set as null, then we report its values at the integer specified.
-   conf_mat <- matrix(default_values,ncol(data),length(default_values),byrow=TRUE,
+   m <- matrix(default_values,ncol(data),length(default_values),byrow=TRUE,
                   dimnames=list(colnames(data),conf_col_names))
-   return(conf_mat)
+   m[,'heatmap_ycoord'] <- 1:nrow(m)
+   mSeq <- 1+as.integer(nrow(m)/grBreak)
+   mGroup <- matrix(c('group',NA,NA),nrow(m),3,byrow=TRUE)
+   for(i in 0:(grBreak-1)){
+      mGroup[(i*mSeq+1):min((i+1)*mSeq,nrow(m)),2] <- i+1
+      mGroup[(i*mSeq+1):min((i+1)*mSeq,nrow(m)),3] <- 1:(min((i+1)*mSeq,nrow(m))-(i*mSeq))
+   }
+   m[,'group'] <- m[,'visu_groups'] <- apply(mGroup[,1:2],1,paste,collapse='_')
+   m[,'visu_ycoord'] <- mGroup[,3]
+   return(m)
 }
 
 `get_cdata_prcomp` <- function(x, cumproportion=0.95, scale=TRUE, center=FALSE){
@@ -318,11 +383,11 @@ function(settings)
 `get_fun_stats` <-
 function(fun_name="oddratios",...){
    # CHEMO-INF: CHI2TEST STATS AND RESIDUALS 
-   if(fun_name == "chemoinf_chi2test")
-      return(function(data,class) { return(stats_chemoinf_chi2test(data,class,...)) })
+   if(fun_name == "chi2test")
+      return(function(data,class) { return(stats_chi2test(data,class,...)) })
    # CHEMO-INF: JOINT DISTRIBUTION
-   if(fun_name == "chemoinf_jointdistrib")
-      return(function(data,class) { return(stats_chemoinf_jointdistrib(data,class,...)) })
+   if(fun_name == "jointdistrib")
+      return(function(data,class) { return(stats_jointdistrib(data,class,...)) })
    # ODD RATIOS CHARACTERIZING EACH CLUSTER
    if(fun_name == "lambdasibs")
       return(function(data,class) { return(stats_lambdasibs(data,class,...)) })
@@ -372,19 +437,6 @@ function(x){
    return(best_models)
 }
 
-`init_data_sibship_pairs` <-
-function(data, settings, vfamily = "family", vmember = "member"){
-   for(f in unique(data[,vfamily])){
-      sibship <- sort(data[data[,vfamily] == f,vmember])
-      if(!is.na(sibship[1]) && !is.na(sibship[2])){
-         data[data[,vfamily] == f & data[,vmember] == sibship[1],vmember] <- 1
-         data[data[,vfamily] == f & data[,vmember] == sibship[2],vmember] <- 2 
-      }
-   }
-   return(data[data[,vmember] <= 2,])
-}
-
-
 `init_data_cc` <-
 function(data,settings)
 {
@@ -413,13 +465,14 @@ function(data,settings)
    for(i in 1:length(x))
       bic_table[i,"BIC"] <- attr(x[[i]],"model")[["BIC"]]
    bic_table[,"relative_BIC"] <- 100*(bic_table[,"BIC"]/max(bic_table[,"BIC"],na.rm=TRUE)-1)
+   bOut <- structure(as.matrix(bic_table), BIC_stats=NULL, BIC_array=NULL, class="bicanalysis")
    rseed_vector <- unique(bic_table[,"rseed"])
    # COMPUTE BIC STATS PATTERNS ACCORDING TO FUN_PATTERN: MEAN, SD, MEDIAN, ETC.
-   for(i in names(fun_pattern))
-      for(which_bic in list("BIC","relative_BIC"))
-         bic_out[[paste2(which_bic, " ", i)]] <- get_long2wide_table(bic_table, 
-            var_aggregate=which_bic, fun_aggregate=fun_pattern[[i]])
-   if(length(rseed_vector)>1){
+   if(!is.null(fun_pattern) && length(rseed_vector)>1){
+      for(i in names(fun_pattern))
+         for(which_bic in list("BIC","relative_BIC"))
+            bic_out[[paste2(which_bic, " ", i)]] <- get_long2wide_table(bic_table, 
+               var_aggregate=which_bic, fun_aggregate=fun_pattern[[i]])
       # PREPARE AN ARRAY OF BIC TABLES 
       for(i in 1:length(rseed_vector)){
          tmp <- get_long2wide_table(bic_table[bic_table[,"rseed"]==rseed_vector[i],], 
@@ -453,14 +506,15 @@ function(data,settings)
             ranking[["In all rseeds, the best BIC"]][i,j] <- best_score
          }
       }
+      attr(bOut,'BIC_stats') <- append(bic_out,ranking) 
+      attr(bOut,'BIC_array') <- bic_array
    }
-   else{
+   if((!is.null(fun_pattern)) && length(rseed_vector)==1){
       ranking[["Given a G, average rank of modelName"]] <- apply(abs(bic_out[["BIC mean"]]),1,rank)
       ranking[["Given a modelName, average rank of G"]] <- apply(abs(bic_out[["BIC mean"]]),2,rank)
+      attr(bOut,'BIC_stats') <- ranking 
    }
-   bicanalysis_out <- structure(as.matrix(bic_table), BIC_stats=append(bic_out,ranking), 
-      BIC_array=bic_array, class="bicanalysis")
-   attr(x,"bicanalysis") <- bicanalysis_out
+   attr(x,"bicanalysis") <- bOut
    return(x)
 }
 
@@ -475,73 +529,78 @@ function(data,settings)
    return(x_out)
 }
 
+`initPlot` <- 
+function(cdata, figIdx, plotNbr=1, type='MixtModel'){
+   # CREATE FIGURE DIRECTORY
+   dir.create(attr(cdata,'figDir'),showWarnings=FALSE)
+   figFile <- paste2(attr(cdata,'figDir'),attr(cdata,"prefix"),'_',sprintf('%03d',figIdx),'-',type,'.pdf')
+   print(figFile)
+   # NUMBER OF SUBPLOT IN A FIGURE
+   plotI <- plotJ <- as.integer(sqrt(plotNbr))
+   if(plotI^2 < plotNbr)
+      plotJ <- plotJ+1 
+   # FIGURE OUTPUT
+   maiParam <- attr(cdata,'mai')
+   if(type=='BB')
+      maiParam <- maiParam+c(0.5,0,0.5,0) 
+   pdf(figFile)
+   par(mfrow = c(plotI,plotJ), mai=maiParam)
+   figIdx <- figIdx+1
+   return(figIdx)
+}
+
+`closePlot` <-
+function(){
+   dev.off()
+}
+
 `plot.cdata` <- 
-function(x, device = "PS", ...) {
-   file_img <- "Screen"
-   if(device == "PS"){
-      file_img <- paste2(attr(x,"prefix"),"_CANALYSIS_DATA_PLOT.ps")
-      postscript(file=file_img)
-   }
-   par(mfrow = c(1,1), new = FALSE, mai=c(2,0.9,0.9,0.9))
-   x_settings <- as.matrix(na.omit(attr(x,"settings")[,c("visu_groups","visu_ycoord")]))
-   split_group <- split(row.names(x_settings),x_settings[,"visu_groups"])
-   for(i in 1:length(split_group))
-      boxplot(as.data.frame(x[,split_group[[i]]]),'las'=2, 
-         main=paste2(" Boxplot ",names(split_group)[i]) , cex.axis=1)
-   par(mfrow = c(4,5), mai=c(0.6,0.4,0.4,0.4))
-   for(var in colnames(x)){
-      # prepare tdata text
-      var_idx   <- which(names(attr(x,"tdata")) == var)
-      txt       <- paste2("(", length(table(x[,var])), " values\n")
-      if(length(var_idx) == 1){
-         for(tn in names(attr(x,"tdata")[[var_idx]])){
-            if(tn == "transform_adjust")
-               txt <-  paste2(txt, tolower(gsub("transform_","",tn))
-                  , "=", attr(x,"tdata")[[var_idx]][[tn]][["print"]], " ")
-            else
-               txt <-  paste2(txt, tolower(gsub("transform_","",tn))
-                  , "=", sprintf("%.2f",attr(x,"tdata")[[var_idx]][[tn]])," ")
+function(x, ...) {
+   xSettings <- as.matrix(na.omit(attr(x,"settings")[,c("visu_groups","visu_ycoord")]))
+   splitGroup <- split(row.names(xSettings),xSettings[,"visu_groups"])
+   figIdxBB <- figIdxH <- 1
+   for(i in 1:length(splitGroup)){
+      # PRODUCE BOXPLOT BY SPLIT GROUP
+      figIdxBB <- initPlot(x, figIdxBB, plotNbr=1, type='BB')
+      boxplot(as.data.frame(x[,splitGroup[[i]]]),'las'=2, 
+         main=paste2(" Boxplot ",names(splitGroup)[i]) , cex.axis=1)
+      closePlot()
+      figIdxH <- initPlot(x, figIdxH, plotNbr=length(splitGroup[[i]]), type='H')
+      for(varName in splitGroup[[i]]){
+         # PREPARE THE TEXT FOR EACH HISTOGRAM
+         vIdx <- which(names(attr(x,"tdata")) == varName)
+         xlabText <- paste2(varName,' ', length(table(x[,varName])), " values\n")
+         if(length(vIdx) == 1){
+            for(tn in names(attr(x,"tdata")[[vIdx]])){
+               if(tn == "transform_adjust")
+                  xlabText <-  paste2(xlabText, tolower(gsub("transform_","",tn))
+                     , "=", attr(x,"tdata")[[vIdx]][[tn]][["print"]], " ")
+               else
+                  xlabText <-  paste2(xlabText, tolower(gsub("transform_","",tn))
+                     , "=", sprintf("%.2f",attr(x,"tdata")[[vIdx]][[tn]])," ")
+               }
             }
-         }
-      hist(x[,var], main=var, xlab=paste2(txt,")"), ylab="", cex=0.7)
+         # PRODUCE HISTOGRAM BY SPLIT GROUP
+         hist(x[,varName], main=NULL,xlab=xlabText, ylab="", cex=0.5, las=2,'new'=TRUE, border=NULL)
+      }
+      closePlot()
    }
-   if(!is.null(device))       
-      dev.off() 
-   return(file_img)
 }
 
 `plot.cresult` <- 
-function(x, device = "PS", query = NULL, img_size = c(1024,1024),...) {
-   plot_file <- "Screen"
+function(x, query = NULL, ...) {
    if(is.null(query))   
-      q_cmodel <- 1:length(x)
+      q <- 1:length(x)
    else 
-      q_cmodel <- query
-   if(device == "PS"){
-      plot_file <- paste2(attr(x,"prefix"),"_CRESULT_PLOT.ps")
-      postscript(file=plot_file)
-   }
-   if(!is.null(query) & device == "PNG"){
-      plot_file <- file.path(getwd(), paste2(attr(x,"prefix"),"_",query,".png"))
-      png(plot_file,width=1.1*img_size[1], height=1.1*img_size[2], bg="transparent")
-   }
-   nbr_plot <- length(attr(x,"fun_plot"))
-   if(nbr_plot <= 6) 
-      mfrow <- c(2,3)
-   if(6 < nbr_plot & nbr_plot <=9 ) 
-      mfrow <- c(3,3)
-   if(9 < nbr_plot & nbr_plot <=12 ) 
-      mfrow <- c(3,4)
-   for(i in q_cmodel){
+      q <- query
+   nbrPlot <- length(attr(x,"fun_plot"))
+   for(i in q){
       if(!is.na(attr(x[[i]],"model")$loglik)){
          par(mfrow=mfrow, 'las'=1,'mai'=c(0.2,0.7,0.5,0.7),new=FALSE)
          for(fun_plot in unlist(attr(x,"fun_plot")))
             try(fun_plot(x[[i]]))
       }
    }
-   if(!is.null(device)) 
-      dev.off()
-   return(plot_file)
 }
 
 `html_format_cells` <- function(x, fmt="%.2f", quant_threshold=quantile(c(-1,1),probs=seq(0,1,0.333))){
@@ -630,21 +689,24 @@ function(x) {
          cdata_l <- cbind(cdata_l,class=attr(x[[i]],"model")[["labelling"]])
          cat("-> Patterns")
          # COMPUTE PATTERNS
+         attr(x[[i]],"pattern") <- NULL
          for(p in names(attr(x,"fun_pattern")))
             attr(x[[i]],"pattern")[[p]] <- compute_pattern(cdata_l,attr(x,"fun_pattern")[[p]])
          # FOR ORDERING, MAKE A DENDROGRAM FROM THE CENTER PATTERN (NUMBER 1)
-         cat("-> Dendros")
-         avg_p <- attr(x[[i]],"pattern")[[1]]
-         attr(x[[i]],"dendro_cluster") <- hclust(dist(avg_p))
-         attr(x[[i]],"dendro_var") <- hclust(dist(t(avg_p)))
-         # REORDER THE PATTERNS
-         cat("-> Ordering")
-         for(p in names(attr(x,"fun_pattern")))
-            attr(x[[i]],"pattern")[[p]] <- attr(x[[i]],"pattern")[[p]][attr(x[[i]],"dendro_cluster")$order,]
-#                                                , rev(sort(colnames(avg_p)))]
-         attr(x[[i]],"pattern")[["class_count"]] <- table(cdata_l[,"class"])[attr(x[[i]],"dendro_cluster")$order]
-         # SELECT DIVERGING COLORS FROM RColorBrewer
-         attr(x[[i]],"cluster_colors") <- brewer.pal(nrow(avg_p),"Set1")
+         if(!is.null(attr(x[[i]],"pattern"))){
+            cat("-> Dendros")
+            avg_p <- attr(x[[i]],"pattern")[[1]]
+            attr(x[[i]],"dendro_cluster") <- hclust(dist(avg_p))
+            attr(x[[i]],"dendro_var") <- hclust(dist(t(avg_p)))
+            # REORDER THE PATTERNS
+            cat("-> Ordering")
+            for(p in names(attr(x,"fun_pattern")))
+               attr(x[[i]],"pattern")[[p]] <- attr(x[[i]],"pattern")[[p]][attr(x[[i]],"dendro_cluster")$order,]
+   #                                                , rev(sort(colnames(avg_p)))]
+            attr(x[[i]],"pattern")[["class_count"]] <- table(cdata_l[,"class"])[attr(x[[i]],"dendro_cluster")$order]
+            # SELECT DIVERGING COLORS FROM RColorBrewer
+            attr(x[[i]],"cluster_colors") <- brewer.pal(nrow(avg_p),"Set1")
+         }
          # STATS
          fun_stats <- attr(x,"fun_stats")
          cat("-> Stats")
@@ -706,12 +768,8 @@ function(x, query = NULL){
       model             <- attr(x[[q]], "model")
       out               <- cbind(model[["z"]], class=map(model[["z"]]))
       colnames(out)[1:(ncol(out)-1)] <- 1:(ncol(out)-1)
-      csv_output        <- paste2(attr(x,"prefix")
-                                , "_Class_"
-                                , model[["modelName"]]
-                                ,"-"
-                                ,model[["G"]]
-                                ,".csv") 
+      csv_output        <- paste2(attr(x,"prefix"), '_'
+                                , gsub(",","_",q),".csv") 
       print(csv_output)
       write.csv2(out,file=csv_output)
    }
@@ -743,7 +801,7 @@ function(x, query = NULL){
 
 `set_cresult` <-
 function(cdata=NULL, cfun=fun_mbc_em, cfun_settings=list(modelName=c("EII",
-   "VII"), G=1:9, rseed=6013), fun_pattern=list(mean=patternMean,
+   "VII"), G=3:5, rseed=6013:6015), fun_pattern=list(mean=patternMean,
    median=patternMedian, lowquant=patternLowquant, upquant=patternUpquant) ,
    fun_plot=list(plot_parcoord=get_plot_fun(type="plot_parcoord"),
    plot_legend=get_plot_fun(type="plot_legend"),
@@ -807,6 +865,8 @@ function(data, data_o = NULL, tdata = NULL, settings, init_fun = list(init_data_
                         , prefix        = paste2(today(),"_",prefix)
                         , xlim          = c(-3,3)
                         , ylim          = c(0,50)
+                        , mai           = c(0.6,0.3,0.05,0.05)
+                        , figDir  = 'figures/' 
                         , class         = "cdata")
    return(cdata_out)
 }
@@ -842,23 +902,26 @@ function(xlim = c(-3,3)
                # ELSE, AS (is_white_gap == TRUE) THEN DO NOT DRAW ANY ARROW...
          }
       }
-      axis(2,at=as.numeric(T_s[,"visu_ycoord"]),labels=colnames(pattern),las=2,tick=FALSE)
+      fv_idx <- 1:nrow(T_s)
+      if(nrow(T_s) > 20)
+         fv_idx <- as.integer(quantile(1:nrow(T_s)))
+      axis(2,at=as.numeric(T_s[fv_idx,"visu_ycoord"]),labels=colnames(pattern)[fv_idx],las=2,tick=FALSE)
       axis(1,at=seq(from = xlim[1] , to = xlim[2], by = (xlim[2] - xlim[1])/4))
    })
 } 
 
-`get_plot_fun` <- function(type="plot_parcoord", title=NULL, xlim=c(-3, 3),
+`get_plot_fun` <- function(type="plot_parcoord", title=NULL, xlim=c(-3, 3), zlim=c(-2,2),
    xy=c(-2.2, 0), cex=0.9, pattern="mean",
-   color_gradient=rev(brewer.pal(9,"RdBu"))){
+   color_gradient=rev(brewer.pal(9,"RdBu")),range_fv=NULL){
 #   color_gradient=colorRampPalette(rev(brewer.pal(11,"RdBu")))(8)){
    return(function(cdata){
       return(get_plot_fun2(type=type, cdata=cdata, xlim=xlim, xy=xy, cex=cex,
-         title=title, pattern=pattern, color_gradient=color_gradient))
+         title=title, pattern=pattern, color_gradient=color_gradient,range_fv=range_fv, zlim=zlim))
       })
 }
 
 `get_plot_fun2` <- function(type, cdata, title, xlim, xy, cex, pattern,
-   color_gradient){
+   color_gradient,range_fv,zlim){
    if(type == "plot_parcoord"){
       cfun_parcoord     <- c()
       for(v in unique(as.character(attr(cdata,"settings")[,"visu_groups"]))){
@@ -870,15 +933,36 @@ function(xlim = c(-3,3)
       }
       return(cfun_parcoord)
    }
+   if(type == "plot_series"){ 
+      if(is.null(range_fv))
+         range_fv <- 1:ncol(cdata)
+      range_fv <- colnames(cdata)[range_fv]
+      return(
+         function(cmodel, apattern = pattern, acex = cex, axlim=xlim,rangeFeatVector=range_fv){
+               x <- attr(cmodel,"pattern")[[apattern]][,rangeFeatVector]
+               plot(ts(t(x)), plot.type='single', col=attr(cmodel,"cluster_colors"), lwd=2, axes=FALSE, 
+                  ylim=axlim, xlab='',ylab='', main=paste(as.matrix(attr(cmodel, "cfun_settings")),sep=',',collapse=','))
+               fv_idx <- 1:ncol(x)
+               if(ncol(x) > 20)
+                  fv_idx <- as.integer(quantile(fv_idx))
+               axis(1, at=(1L:ncol(x))[fv_idx], labels = colnames(x)[fv_idx], las = 2, line = -0.5, tick = TRUE, cex.axis = acex)
+               axis(2, at=as.integer(seq(axlim[1],axlim[2],length.out=4)),las=2)
+               d <- table(attr(cmodel,'model')$labelling)[row.names(x)]
+               d <- apply(cbind(names(d),' (',d,')'),1,paste2)
+               legend("bottomleft",legend=d,col=attr(cmodel,"cluster_colors"),lwd=2, bty='n')
+            })
+            }
    if(type == "plot_image")            
       return(
-         function(cmodel, apattern = pattern, acolgrad = color_gradient, atitle = title, acex = cex){
+         function(cmodel, apattern = pattern, acolgrad = color_gradient, atitle = title, acex = cex, azlim=zlim){
                x <- attr(cmodel,"pattern")[[apattern]]
                image(1L:nrow(x), 1L:ncol(x), x, xlim = 0.5 + c(0, nrow(x)),
                   ylim = 0.5 + c(0, ncol(x)), axes = FALSE, xlab = "", ylab = "",
-                  col=acolgrad, main=atitle,add=FALSE,zlim=c(-2,2))
-               #if(ncol(x) < 30)
-               axis(2, 1L:ncol(x), labels = colnames(x), las = 2, line = -0.5, tick = 0, cex.axis = acex)
+                  col=acolgrad, main=atitle,add=FALSE, zlim=azlim)
+               fv_idx <- 1:ncol(x)
+               if(ncol(x) > 20)
+                  fv_idx <- as.integer(quantile(fv_idx))
+               axis(2, at=(1L:ncol(x))[fv_idx], labels = colnames(x)[fv_idx], las = 2, line = -0.5, tick = 0, cex.axis = acex)
                axis(1, 1L:nrow(x), labels = row.names(x),las = 1, line = -0.5, tick = 0, cex.axis = acex)
             })
    if(type == "plot_legend")           
@@ -1024,26 +1108,24 @@ function(data,class,fun_midthreshold=median){
    return(list(out=s_out,s))
 }
 
-`stats_chemoinf_chi2test` <- 
+`stats_chi2test` <- 
 function(data, class, class_col='Class', probs=seq(0,1,0.4)[2:3]){
-   ldata <- cbind(data, class=map(class))
-   ldata <- cbind(ldata, ChemoClass=as.character(attr(data,'data_o')[row.names(ldata),class_col]))
-   s_test <- chisq.test(xtabs( ~.,ldata[,c("class","ChemoClass")]), simulate.p.value=TRUE)
+   ldata <- cbind(data, modelClass=map(class))
+   ldata <- cbind(ldata, target=as.character(attr(data,'data_o')[row.names(ldata),class_col]))
+   s_test <- chisq.test(xtabs( ~.,ldata[,c('modelClass',"target")]), simulate.p.value=TRUE)
    s <- cbind(s_test[["residuals"]]^2, chi2test=NA)
    s[1:2,"chi2test"] <- c(sprintf('%.1e',s_test[["p.value"]]), sprintf('%.1f',s_test[["statistic"]]))
    colnames(s)[match("chi2test",colnames(s))] <- paste2(class_col, " (residual)")
-   # s_out <- apply(s, 1:2, html_format_numeric, fmt='%.1f', 
-   #   col_threshold=c(-1,quantile(s_test[["residuals"]]^2,probs=probs)[[1]]))
    s_out <- apply(s, 1:2, html_format_cells, fmt='%.1f' 
       , quant_threshold=quantile(as.numeric(s_test[["residuals"]]^2), probs=probs))
    return(list(out=s_out,s))
 }
 
-`stats_chemoinf_jointdistrib` <- 
+`stats_jointdistrib` <- 
 function(data, class, class_col='Class'){
-   ldata <- cbind(data, class=map(class))
-   ldata <- cbind(ldata, ChemoClass=as.character(attr(data,'data_o')[row.names(ldata),class_col]))
-   s <- xtabs( ~.,ldata[,c("class","ChemoClass")])
+   ldata <- cbind(data, modelClass=map(class))
+   ldata <- cbind(ldata, target=as.character(attr(data,'data_o')[row.names(ldata),class_col]))
+   s <- xtabs( ~.,ldata[,c("modelClass","target")])
    s_out <- apply(s, 1:2, html_format_numeric, fmt='%d')
    return(list(out=s_out,s))
 }
@@ -1206,5 +1288,265 @@ function(data,settings,tdata=NULL){
       }
    }
    return(list(data=data,tdata=tdata))
+}
+
+`perform_chi2_tests` <- 
+function(m,tonominal=FALSE,simulate.p.value = TRUE, B = 10000){
+   m2 <- m
+   if(tonominal)
+      m2 <- cbind(m,sup_med=as.numeric(m[,1])>median(as.numeric(m[,1])))[,3:2]
+   a <- xtabs(formula=~.,data=m2)
+   if(nrow(a) > 2) range_row <- 1:nrow(a)
+   else range_row <- 1
+   apvalues <- matrix(NA,max(range_row),ncol(a))
+   for(i in range_row){
+      for(j in 1:ncol(a)){
+         a2by2 <- matrix(c(a[i,j],sum(a[i,][-j]),sum(a[,j][-i]),sum(a[-i,-j])),2,2,byrow=TRUE)
+         # FOR TESTING: cat("\n",i,j) print(a2by2)
+         chi2_test <- chisq.test(a2by2,simulate.p.value = simulate.p.value, B = B)
+         apvalues[i,j] <- sign(chi2_test$residuals[1,1]) * chi2_test$p.value
+      }
+   }
+   if(nrow(apvalues) > 1)
+      row.names(apvalues) <- row.names(a)
+   else if(nrow(apvalues) == 1 && tonominal) 
+      row.names(apvalues)[1] <- paste2('> med ',colnames(m)[1])
+   else 
+      row.names(apvalues)[1] <- row.names(a)[1]
+   return(apvalues)
+}
+
+`word_cloud_analysis` <- 
+function(m, convert2nominal=NA,title=NA,filename="WC",test_threshold=0.05,magn=0.05,css_style="font-family:times;",colors=c('#fddbc7','#d1e5f0')){
+   HTMLStart(outdir="./",filename=paste2(today(),filename),HTMLframe=FALSE, Title=title,autobrowse=FALSE)
+   HTML(title)
+   a <- htmlTable <- matrix("",0,length(unique(m[,"class"])))
+   for(f in colnames(m[,-grep("class", colnames(m))])){
+      tonominal <- f %in% convert2nominal
+      X2 <- perform_chi2_tests(m[,c(f,"class")], tonominal=tonominal)
+      a <- rbind(a, X2)
+      line <- matrix("",1,ncol(htmlTable))
+      for(j in 1:ncol(X2)){
+         for(i in 1:nrow(X2)){
+            if(abs(X2[i,j]) <= test_threshold){
+               line[j] <- paste2(line[j],"<font style='",css_style,
+                                 ";background-color:",colors[as.integer(1.5+sign(X2[i,j])/2)],
+                                 ";font-size:", -log(abs(X2[i,j]))*magn, "cm'>", 
+                                 row.names(X2)[i], "</font><br>")
+            }
+         }
+      }
+      htmlTable <- rbind(htmlTable,line)
+   }
+   a <- matrix(as.numeric(a),nrow(a),ncol(a),dimnames=list(sub("> med ","",row.names(a)),colnames(a)))
+   row.names(htmlTable) <- colnames(m[,-grep("class", colnames(m))])
+   colnames(htmlTable) <- 1:ncol(htmlTable)
+   HTML(htmlTable)
+   HTMLStop()
+   return(a)
+}
+
+`plot.association_analysis` <- 
+function(x, range_fv=NULL, p_quantile=0.95, ylim=NA, ylim2=c(15,0), xlab="", text="", ...){
+   postscript(paste2(attr(x,'prefix'),'.ps'))
+   par('mfrow'=c(3,2),mai=c('0.5','0.5','0.5','1'))
+   for(i in 1:length(attr(x,'fv'))){
+      if(length(range_fv)>0)
+         a <- cbind(scores=attr(x,'sc_med')[[i]][range_fv], pvalues=apply(attr(x,'x2')[[i]][,range_fv],2,quantile,probs=p_quantile))
+      else
+         a <- cbind(scores=attr(x,'sc_med')[[i]], pvalues=apply(attr(x,'x2')[[i]],2,quantile,probs=p_quantile))
+      if(length(ylim) != 2)
+         ylim <- as.integer(range(a[,'scores']))
+      title <- paste2(text, ' (#',i,')')
+      plot_patternAndPvalues(a, title=title, ylim2=ylim2, ylim=ylim, xlab=xlab)
+   }
+   graphics.off()
+}
+
+
+`plot_patternAndPvalues` <-
+function(a, title="", ylim=c(-2,38), ylim2=c(15,0), xlab=""){
+   # P-VALUES
+   plot(x=0, ann=FALSE, pch=18, col="white", axes=FALSE, xlim=c(1,nrow(a)), ylim=ylim2)
+   lines(list(x=1:nrow(a),y=-log(a[,'pvalues'])), col='grey', lty=1, lwd=1)
+   lines(list(x=c(5,nrow(a)), y=-log(c(0.05,0.05))),col='grey',lwd=1)
+   lines(list(x=c(5,nrow(a)), y=-log(c(0.01,0.01))),col='grey',lwd=1)
+   axis(4, at=-log(c(1,0.05,0.01)), las='1', labels=c('1   ',' .05',' .01'))
+   # IMAGE
+   b <- matrix(0,nrow(a),1)
+   b[which(abs(a[,'pvalues'])<0.05),] <- 0.5
+   b[which(abs(a[,'pvalues'])<0.01),] <- 1
+   image(x=1:nrow(a),y=-log(c(1,0.05)),z=b,col=brewer.pal(5,"Blues"), breaks=c(-0.1,0.1,0.3,0.6,0.8,1),add=TRUE)
+   par(new=TRUE)
+   plot(x=0, new=TRUE, ann=FALSE, pch=18, col="white", axes=FALSE, xlim=c(1,nrow(a)), ylim=ylim,xlab=xlab)
+   # SCORES
+   lines(list(x=1:nrow(a), y=a[,'scores']), lwd=2)
+   # RANGES OF FREQUENCIES: HIGHLY DISCRIMINATIVES
+   topFeats <- as.numeric(which(abs(a[,'pvalues'])<0.05))
+   k <- j <- topFeats[1]
+   for(i in topFeats){
+      if(i>j+1) k <- c(k,j,i)
+      j<- i
+   }
+   if(!is.integer(length(k)/2))
+   k <- c(k,k[length(k)])
+   rangeFeats <- matrix(k,length(k)/2,2,byrow=TRUE)
+   # SCORE AXES  
+   axis(1, at=c(1,unique(rangeFeats),nrow(a)), labels=row.names(a)[c(1,unique(rangeFeats),nrow(a))],las='2')
+   seqY <- seq(ylim[1],ylim[2],length.out=4)
+   axis(2, at=seqY, labels=sprintf('%1.1e',seqY), las=2)
+   title(title)
+}
+
+
+`bootstrap_pvalues` <- 
+function(x, B_max=1000,rseed=6013){
+   set.seed(rseed)
+   master_bootstrap <- sample(1:nrow(x),B_max*nrow(x),replace=TRUE)
+   x2 <- matrix(NA,B_max,ncol(x)-1,dimnames=list(list(),colnames(x[,-ncol(x)])))
+   for(b in 1:B_max){
+      idx <- master_bootstrap[(1+(b-1)*(nrow(x)-1)):(b*(nrow(x)-1))]
+      cat(".",b)
+      for(f in 1:(ncol(x)-1)){
+         x2[b,f] <- chisq.test(xtabs(formula=~.,data=x[idx,c(f,ncol(x))]),simulate.p.value=TRUE, B = 1000)$p.value
+         }
+
+   }
+   return(x2)
+}
+
+
+`to_binary` <- 
+function(x){
+   x_bin <- x
+   for(i in 1:ncol(x))
+      x_bin[,i] <- as.numeric(x[,i])>median(as.numeric(x[,i]))
+   return(x_bin)
+}
+
+
+`association_analysis` <- 
+function(x, q=NA, B=4){
+   if(class(x) == "cresult"){
+      # RETRIEVE APPROPRIATE CLASS/SUBTYPE LABELS 
+      if(!is.na(q) && length(which(q %in% names(x))) == 0)
+         l <- as.character(attr(attr(x,'cdata'),'data_o')[row.names(attr(x,'cdata')),q])
+      else{
+         if(is.na(q))
+            q <- get_best_models(x)[1]
+         l <- as.character(attr(x[[q]],'model')$labelling)
+      }
+      m <- data.frame(attr(attr(x,'cdata'),'data_o')[,colnames(attr(x,'cdata'))],class=l)
+      p <- attr(x, 'prefix')
+   }
+   else{
+      p <- today()
+      m <- x 
+      l <- as.character(x[,'class'])
+   }
+   # INIT DATA
+   prefix <- paste2(p,'_discriminative_features_',gsub(",","_",q))
+   mBin <- data.frame(to_binary(m[,-ncol(m)]),class=l)
+   x2 <- fv <- sc_med <- list()
+   # 
+   for(i in sort(unique(l))){
+      mTmp <- data.frame(mBin[,-ncol(mBin)], class=(l==i))
+      x2[[i]] <- bootstrap_pvalues(mTmp, B_max=B)
+      fv[[i]] <- names(which(apply(x2[[i]], 2, quantile, probs=0.5)<0.05))
+      sc_med[[i]] <- apply(m[(l==i), -which(colnames(m) %in% c('class',q))],2,median)
+   }
+   obj_out <- structure(fv, x2=x2, fv=fv, sc_med=sc_med, prefix=prefix, class="association_analysis")
+   if((class(x) == "cresult") && (length(which(q %in% names(x)))>0)){
+      attr(x[[q]],'association_analysis') <- obj_out
+      return(x)
+   }
+   else
+      return(obj_out)
+}
+
+`bestNFeatures` <- 
+function(x, N=10){
+   # FEATURE SELECTION BY RANKING OF THE P-VALUES
+   cList <- names(attr(x,'x2'))
+   m <- attr(x,'x2')[[1]]
+   pTable <- rTable <- fSelFreq <- matrix(NA, ncol(m),length(cList), dimnames=list(colnames(m),cList)) 
+   maxP <- matrix(NA,length(cList),1,dimnames=list(cList,'maxP'))
+   # NFREQ CONTROLS THE QUANTITY OF FEATURE SELECTED BY CLASS
+   nPerClass <- as.integer(N/length(cList))
+   fList <- NULL
+   for(i in cList){
+      pTable[,i] <- abs(attr(x,'sc_med')[[i]])
+      rTable[,i] <- order(attr(x,'sc_med')[[i]])
+      fSelFreq[,i] <- order(attr(x,'sc_med')[[i]])<=nPerClass
+      fList <- unique(c(fList,names(which(fSelFreq[,i]))))
+   }
+   j <- 1
+   while(length(fList)<N){
+      i <- 1+j%%length(cList)
+      fSelFreq[,i] <- order(attr(x,'sc_med')[[i]]) <= (nPerClass+as.integer(1+j/length(cList)))
+      fList <- unique(c(fList,names(which(fSelFreq[,i]))))
+      j <- j+1
+   }
+   for(i in cList)
+      maxP[i]<- max(pTable[which(fSelFreq[,i]),i])
+   attr(x,'bestNFeatures') <- structure(fList, N=N, pTable=pTable, rTable=rTable, maxP=maxP,class='bestNFeatures')
+   return(x)
+}
+
+
+`analysisVarFeat` <- 
+function(m, a=NULL, maxFeat=NA, postscript=TRUE,clusterModel='VVI', clusterG=6,
+   clusterRseed=6013:6063){
+   nFeatMax <- min(ncol(m)-1,maxFeat,na.rm=TRUE)
+   iterMax <- as.integer((2*(log(nFeatMax))/log(2)-4))
+   iterSeq <- as.integer(2^(2+(1:iterMax)/2))
+   x <- NULL
+   if(is.null(a))
+      a <- association_analysis(m)
+   for(i in iterSeq){
+      cat('\n',i,' features...')
+      aTmp <- bestNFeatures(a,N=i)
+      # PREPARE SETTINGS
+      settings <- generate_cdata_settings(m)
+      settings[,'in_canalysis'] <- FALSE 
+      settings[as.character(attr(aTmp,'bestNFeatures')),'in_canalysis'] <- TRUE
+      # PREPARE CDATA
+      cdata <- set_cdata(m,settings=settings, prefix=paste2('With_',i,'_Features'))
+      # PREPARE CRESULT
+      x[[as.character(i)]] <- set_cresult(cdata=cdata,
+         fun_stats=list(), fun_plot=list(), fun_pattern=NULL, fun_bic_pattern=NULL,
+         nbr_top_models=5, cfun=fun_mbc_em,
+         cfun_settings=list(modelName=clusterModel, G=clusterG, rseed=clusterRseed))
+      x[[as.character(i)]] <- fun_cmodel(x[[as.character(i)]])
+   }
+   # V, SCALE UP
+   combi <- t(combn(names(x),2))
+   compList <- list()
+   v<- matrix(NA,length(x),length(x),dimnames=list(names(x),names(x)))
+   for(i in 1:nrow(combi)){
+       idx <- paste(combi[i,],collapse=",")
+       compList[[idx]] <- compare_transform(x[[combi[i,1]]],x[[combi[i,2]]])
+       v[combi[i,2],combi[i,1]] <- v[combi[i,1],combi[i,2]] <- compList[[idx]]$summary[1]
+    }
+    print(v)
+    # GRAPHIC OUTPUT
+   fileName <- paste2(today(),'analysisVarFeat')
+   if(postscript){
+      postscript(file=paste2(fileName,'.ps'))
+      image(1L:nrow(v), 1L:ncol(v), v, xlim = 0.5 + c(0, nrow(v)),ylim = 0.5 +
+         c(0, ncol(v)),    axes = FALSE, xlab = "", ylab = "",
+         col=brewer.pal(9,"Greys"), main='scaling up
+         (V)',zlim=range(v,na.rm=TRUE))
+      fv_idx <- 1:ncol(v)
+      if(ncol(v) > 20) 
+         fv_idx <- as.integer(quantile(fv_idx))
+         axis(2, at=(1L:ncol(v))[fv_idx], labels = colnames(v)[fv_idx], las = 2, line = -0.5, tick = 0)
+         axis(1, 1L:nrow(v), labels = row.names(v),las = 1, line = -0.5, tick = 0)
+         graphics.off()
+   }
+   # SAVE
+   cat("\nSave 'cresult' into ", fileName)
+   save(list = "x", file = paste2(fileName,'.RData'))
+   return(x)
 }
 

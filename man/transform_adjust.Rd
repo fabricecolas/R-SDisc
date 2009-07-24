@@ -29,5 +29,4 @@ when a non-null \code{tdata} structure is provided, the function adjust
 \code{\link{transform_L1}}, \code{\link{transform_MAX}},
 \code{\link{transform_MEDIAN}}, \code{\link{transform_MIN}},
 \code{\link{transform_SIGMA}}, \code{\link{transform_adjust}},
-\code{\link{transform_cdata}}, \code{\link{transform_sibordering}}}
-\keyword{}
+\code{\link{transform_cdata}}}

@@ -7,4 +7,3 @@ where by default, the NA's are removed.  }
 \arguments{ \item{x}{ A numeric vector. } }
 \author{ Fabrice Colas }
 \seealso{ \code{\link{help}}}
-\keyword{ }

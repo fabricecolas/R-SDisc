@@ -9,7 +9,7 @@ as empty cluster models (\code{cmodel}) that refer to the different sketches
 for the modeling.  The main element of each \code{cmodel} is actually a
 prepared function call that only needs a data set as argument.}
 \usage{ set_cresult(cdata=NULL, cfun=fun_mbc_em, cfun_settings=list(modelName=c("EII",
-"VII"), G=1:9, rseed=6013), fun_pattern=list(mean=patternMean,
+"VII"), G=3:5, rseed=6013:6015), fun_pattern=list(mean=patternMean,
 median=patternMedian, lowquant=patternLowquant, upquant=patternUpquant) ,
 fun_plot=list(plot_parcoord=get_plot_fun(type="plot_parcoord"),
 plot_legend=get_plot_fun(type="plot_legend"),
@@ -25,7 +25,11 @@ nbr_top_models=5)}
   by \code{set_cdata}, }
   \item{cfun}{ The clustering function call,}
   \item{cfun_settings}{ A named list of vectors, which combinations are passed
-  as argument to the clustering function.}
+  as argument to the clustering function. At this moment, as only
+  \code{fun_mbc_em} can be passed to \code{cfun}, its default parameters are
+  \code{modelName=c('EII','VII')}, \code{G=3:5} and \code{rseed=6013:6015} (Rk:
+  notice that for each parameter, the length of the vector must be at least two
+  for further processing of BIC patterns on a 3-dimensional array).}
   \item{fun_pattern}{ A list of functions which we use to compute different
       patterns of a cluster result,}
   \item{fun_plot}{ The different plotting function that we use to characterize
@@ -46,7 +50,17 @@ nbr_top_models=5)}
 
    For example, see demos.
 }
+\examples{
+# LOAD THE DATA SET
+data(wada2008)
+# LOAD THE PRE-DEFINED SETTINGS OF WADA2008
+# SEE generate_cdata_settings FOR MORE DETAILS
+data(wada2008_settings)
+wada2008_cdata <- set_cdata(data=wada2008[1:100,],settings=wada2008_settings,prefix='Wada2008')
+wada2008_cresult <- set_cresult(cdata=wada2008_cdata)
+# NOT RUN
+# analysis(wada2008_cresult)
+}
 \author{ Fabrice Colas }
 \seealso{  \code{\link{set_cdata}},
 \code{\link{generate_cdata_settings}},  \code{\link{analysis}}, .}
-\keyword{}

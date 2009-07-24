@@ -19,4 +19,3 @@
 \code{\link[e1071:e1071-package]{naiveBayes}}, 
 \code{\link[e1071:e1071-package]{svm}}}
 \author{ Fabrice Colas }
-\keyword{}

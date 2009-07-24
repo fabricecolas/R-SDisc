@@ -15,4 +15,3 @@ characterization (e.g log of the odds) and evaluation of the different clusters
 \value{ Returns a character matrix with the measurements.  }
 \author{ Fabrice Colas }
 \seealso{\code{\link{compare_cresult}}}
-\keyword{}

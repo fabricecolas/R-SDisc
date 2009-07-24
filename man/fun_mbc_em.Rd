@@ -20,4 +20,3 @@ corresponding model by an M-step and then starts EM given that model.  }
 \author{ Fabrice Colas }
 \seealso{\link[mclust:mclust-package]{mstep}, \link[mclust:mclust-package]{em},
 \link[mclust:mclust-package]{bic}, \link[mclust:mclust-package]{map}}
-\keyword{}

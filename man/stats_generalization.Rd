@@ -26,4 +26,3 @@ stratified_traintest_split, title = NULL) }
   \item{title}{ the title to use when outputting table of results. }
 }
 \author{ Fabrice Colas }
-\keyword{}

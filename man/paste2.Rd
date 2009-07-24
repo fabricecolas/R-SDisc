@@ -8,4 +8,3 @@ spaces.  }
   \item{\dots}{ one or more R objects, to be converted to character vectors.}
 }
 \author{ Fabrice Colas }
-\keyword{}

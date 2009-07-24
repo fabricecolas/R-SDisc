@@ -17,4 +17,3 @@ var_x="G", var_y="modelName") }
 }
 \author{ Fabrice Colas }
 \seealso{ \code{\link{print.bicanalysis}},  \code{\link{set_bicanalysis}}}
-\keyword{ }

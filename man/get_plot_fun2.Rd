@@ -29,4 +29,3 @@ color_gradient) }
 \value{ Returns a function taking a single \code{cmodel} argument.  }
 \author{ Fabrice Colas }
 \seealso{\code{\link{plot_parcoord}}, \code{\link{set_cresult}}}
-\keyword{}

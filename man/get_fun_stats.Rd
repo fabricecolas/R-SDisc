@@ -16,4 +16,3 @@ statistics on a particular cluster model (\code{cmodel}). }
 \code{\link{stats_generalization}},
 }
 \author{ Fabrice Colas }
-\keyword{}

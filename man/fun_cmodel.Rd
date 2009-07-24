@@ -12,7 +12,5 @@ are cluster models (\code{cmodel}).}
   \code{set_cresult}. } }
 \value{ Returns a \code{cresult} data structure whose cluster results are the
 estimated models \code{cmodel}.  }
-\references{  }
 \author{ Fabrice Colas }
 \seealso{ \code{\link{set_cresult}}, \code{\link{set_cdata}} }
-\keyword{}

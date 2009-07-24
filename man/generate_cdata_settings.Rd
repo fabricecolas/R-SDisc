@@ -23,5 +23,4 @@ data(wada2008_settings)
 print(wada2008_settings)
 ## End(Not run)
 }
-\seealso{ \code{\link{set_cdata}}}
-\keyword{}
+\seealso{ \code{\link{wada2008_settings}}, \code{\link{wada2008}}, \code{\link{set_cdata}}}

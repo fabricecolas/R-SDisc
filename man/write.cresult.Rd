@@ -16,4 +16,3 @@ observation as well as the most likely cluster affectation.}
 }
 \author{ Fabrice Colas }
 \seealso{\code{\link{cross_compare_models}}, \code{\link{set_cresult}}}
-\keyword{}

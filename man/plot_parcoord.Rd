@@ -21,4 +21,3 @@ pattern = NULL) }
 \value{ Returns a function able to do a parallel coordinates plot when called.  }
 \author{ Fabrice Colas }
 \seealso{ \code{\link{set_cresult}}, \code{\link{get_plot_fun}}}
-\keyword{}

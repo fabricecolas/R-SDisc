@@ -7,4 +7,3 @@ to track files generated in the course of the different analysis.}
 \author{ Fabrice Colas }
 \seealso{ \code{\link{paste2}}}
 \examples{ print(today()) }
-\keyword{}

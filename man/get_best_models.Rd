@@ -9,4 +9,3 @@ ranking models in the \code{cresult}. }
 \value{ A character vector with elements of the type "modelName, number of
 cluster".  }
 \author{ Fabrice Colas }
-\keyword{}

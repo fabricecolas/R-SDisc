@@ -10,4 +10,3 @@ variable on which we should confine our cluster analysis.}
 \value{ Returns a character vector naming the different variables.  }
 \author{ Fabrice Colas }
 \seealso{ \code{\link{set_cdata}}, \code{\link{generate_cdata_settings}},}
-\keyword{}

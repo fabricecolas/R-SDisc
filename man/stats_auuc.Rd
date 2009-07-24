@@ -23,4 +23,3 @@ the observation for the current model.
 \author{ Fabrice Colas }
 \seealso{  \code{\link{get_fun_stats},
 \link{stats_generalization},\link{stats_logodds}}}
-\keyword{}

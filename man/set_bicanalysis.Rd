@@ -15,4 +15,3 @@ random start number.  }
 }
 \author{ Fabrice Colas }
 \seealso{ \code{\link{set_cresult}} }
-\keyword{ }

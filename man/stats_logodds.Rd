@@ -12,4 +12,3 @@ a cluster distribution as compared to the one of the dataset.  }
 }
 \author{ Fabrice Colas }
 \seealso{\code{\link{stats_lambdasibs}}.}
-\keyword{}

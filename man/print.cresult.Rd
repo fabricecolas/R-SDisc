@@ -3,16 +3,14 @@
 \title{ Generic print function with the characteristics of a cluster result}
 \description{ For objects of type (\code{cresult}), this generic
 print function reports cross comparison of the most likely cluster results
-(\code{cross_compare_models}).}
-\usage{ \method{print}{cresult}(x, html=TRUE, img=FALSE, img_size=c(1024,1024), ...) }
+(\code{compareModels}).}
+\usage{ \method{print}{cresult}(x, m1 = NULL, m2 = NULL, type = "term", label = "tab:jointdistrib",...) }
 \arguments{
    \item{x}{ An object of type \code{cresult},}
-   \item{html}{ A logicial value (\code{...}) telling whether we should
-   generate an HTML output, }
-   \item{img}{ A logicial value (\code{...}) telling whether we should append
-   figures to the HTML output, }
-   \item{img_size}{ When "PNG" images are generated, default size of the plots,}
+   \item{m1}{ A model name as returned by \code{getBestModel},}
+   \item{m2}{ Same than \code{m2},}
+   \item{type}{ The type of output to generate from XTable (html, latex, or term),}
+   \item{label}{ The label for cross-referencing in latex,}
    \item{...}{...}
 }
 \author{ Fabrice Colas }
-\seealso{\code{\link{cross_compare_models}}, \code{\link{set_cresult}}}

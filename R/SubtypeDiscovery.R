@@ -1,21 +1,17 @@
 `analysis` <-
-function(x, device="PS", img=FALSE, html=TRUE){
-   plot(attr(x,"cdata"), device = device)
-   x <- fun_cmodel(x)
-   file_save <- paste2(attr(x,"prefix"),"_IMAGE.RData")
-   cat("\nSave 'cresult' into ",file_save)
-   save(list='x', file=file_save)
-   cat("\nWrite best models\n")
+function(x){
+   cat('\n Plot cdata for EDA\n')
+   plot(attr(x,"cdata"))
+   cat('\n Perform cluster analysis\n')
+   x <- doModeling(x)
+   cat("\nSave best models as CSV files\n")
    write.cresult(x)
-   cat("\nPlot cresult -> PS")
-   plot(x, device=device)
-   cat("\nGenerate HTML report -> .html")
-   print(x, html=html, img=img)
-
+   cat('\n Plot cresult\n')
+   plot(x)
    return(x)
 }
 
-`stats_auuc` <-
+`funStatsAuuc` <-
 function(class){
    # AREA UNDER THE UN-CERTAINTY CURVE FOR EACH TWO MODELS
    auuc         <- mean(1-apply(class,1,max,na.rm=TRUE))
@@ -26,12 +22,10 @@ function(class){
    return(list(auuc = auuc, sd = auuc_sd, out = out))
 }
 
-
-
-`stability_analysis` <-
+`stabilityAnalysis` <-
 function(x,q,rseed=6013,nnoise=10,nrep=10,ps=TRUE, ncolors=9,minmax=c(0.5,1)){
    settings <- strsplit(q,',')[[1]]
-   cdata <- get_cdata(attr(x, "cdata"))
+   cdata <- print(attr(x, "cdata"))
    r <- list()
    v <- matrix(NA,nnoise,nrep*(nrep-1)/2,dimnames=list(sprintf("%4f",(1/2)^(1:nnoise)),list()))
    # NOISE LEVELS
@@ -43,7 +37,7 @@ function(x,q,rseed=6013,nnoise=10,nrep=10,ps=TRUE, ncolors=9,minmax=c(0.5,1)){
          r[[l]][[s]] <- list()
          set.seed(s)
          Y <- cdata+matrix(rnorm(nrow(cdata)*ncol(cdata),sd=sd_l,mean=0),nrow(cdata),ncol(cdata))
-         r[[l]][[s]] <- fun_mbc_em(Y,modelName=settings[1],G=settings[2],rseed=as.numeric(settings[3]))
+         r[[l]][[s]] <- clusterModelBasedEM(Y,modelName=settings[1],G=settings[2],rseed=as.numeric(settings[3]))
          r[[l]][[s]][["Y"]] <- Y
       }
       tmp <- c()
@@ -51,30 +45,28 @@ function(x,q,rseed=6013,nnoise=10,nrep=10,ps=TRUE, ncolors=9,minmax=c(0.5,1)){
          s1 <- rseed+ridx1
          for(ridx2 in 1:nrep){
             s2 <- rseed+ridx2
-            if(ridx2>ridx1){
-               m <- as.table(ftable(r[[l]][[s1]]$labelling,r[[l]][[s2]]$labelling))
-               tmp <- c(tmp,sqrt(as.numeric(summary(m)["statistic"])/(as.numeric(summary(m)["n.cases"])*(min(dim(m))-1))))
-            }
+            if(ridx2>ridx1)
+               tmp <- c(tmp, V.score(r[[l]][[s1]]$labelling, r[[l]][[s2]]$labelling))
          }
       }
       v[l,] <- sort(tmp)
    }
    breaks <- seq(minmax[1],minmax[2],(minmax[2]-minmax[1])/ncolors)
    if(ps){
-      postscript(paste2(attr(x,'prefix'),"_stability_analysis_",gsub(',','_',q),".ps"))
+      postscript(paste2(attr(attr(x,'cdata'),'figDir'),"/stabilityAnalysis_",gsub(',','_',q),".ps"))
       image(v,col=brewer.pal(ncolors,"Greys"),breaks=breaks,axes=FALSE,ylab='Association level V, quantiles',cex.lab=1.7)
-      contour(v,add=TRUE,labcex=1.3)
-      axis(1,at=seq(0,1,0.11),labels=sprintf("%.1f%%",100*as.numeric(row.names(v))),las=2,cex.axis=1.7)
-      axis(2,at=seq(0,1,0.2),labels=sprintf("%d%%",100*seq(0,1,0.2)),cex.axis=1.7)
+      contour(v, add=TRUE,labcex=1.3)
+      axis(1, at=seq(0,1,0.11),labels=sprintf("%.1f%%",100*as.numeric(row.names(v))),las=2,cex.axis=1.7)
+      axis(2, at=seq(0,1,0.2),labels=sprintf("%d%%",100*seq(0,1,0.2)),cex.axis=1.7)
       title(paste(settings,sep="",collapse=" "))
       graphics.off()
    }
+   v <- structure(v,class='stabilityAnalysis')
    return(v)
 }
 
-`compare_transform` <-
+`compareCresult` <-
 function(x,y,probs=seq(0,1,0.1)){
-   prefix               <- attr(x,"prefix")
    m <- data.frame(attr(x,'cfun_params'),V=NA)
    row.names(m) <- apply(as.matrix(m[,1:3]),1,paste,sep='',collapse=',') 
    for(i in names(x)){
@@ -90,26 +82,7 @@ function(x,y,probs=seq(0,1,0.1)){
    return(list(summary=m_x, m=m))
 }
 
-`compare_cresult` <-
-function(x,query=NULL){
-   prefix               <- attr(x,"prefix")
-   nbr_top_models       <- attr(x,"nbr_top_models")
-   cross_comparison_results <- list()
-   best_models          <- get_best_models(x)
-   model_pairs          <- t(combn(best_models,m=2))
-   if(nrow(model_pairs)>=1){
-      cnames            <- gsub(",","_",paste("(",apply(model_pairs,1,paste,collapse="),("),")",sep=""))
-      for(mp_idx in 1:nrow(model_pairs)){
-         a              <- x[[which(model_pairs[mp_idx,1] == names(x))]]
-         b              <- x[[which(model_pairs[mp_idx,2] == names(x))]]
-         if( !is.na(attr(a,"model")$loglik) && !is.na(attr(b,"model")$loglik))
-            cross_comparison_results[[cnames[mp_idx]]] <- cross_compare_models(a,b)
-      }
-   }
-   return(cross_comparison_results)
-}
-
-`compute_pattern` <-
+`doPattern` <-
 function(data,fun=mean){
    data                 <- data.matrix(aggregate(data,fun,by=list(class=data[,"class"])))[,-1]
    row.names(data)      <- 1:nrow(data)	
@@ -118,82 +91,61 @@ function(data,fun=mean){
    return(data)
 }
 
-`cross_compare_models` <-
-function(x,y){
-   # CONTINGENCY TABLE BY CROSS COMPARISONS BETWEEN MODEL 1 AND 2
-   m <- as.table(ftable(attr(x,"model")$labelling,attr(y,"model")$labelling))
-   m_num <- m
-   # USE JOINT PROBABILITIES TO COMPUTE THE CONTINGENCY TABLE (%) 
-   m_p <- fullproba_ftable(attr(x,"model")$z,attr(y,"model")$z)
-   map_rand_err_test <- t.test(as.numeric(m/sum(m)-m_p))
-   # CHI2_STATS: TEST THE ASSOCIATION BETWEEN THE TWO CATEGORICAL VARIABLES
-   # H0: NO ASSOCIATION BETWEEN THE TWO VARIABLES
-   # H1: THERE IS ASSOCIATION BETWEEN THE TWO VARIABLES
-   ind_test <- chisq.test(m,simulate.p.value=TRUE)
-   # CRAMER'S V 
-   x_summary <- summary(m)
-   n <- as.numeric(x_summary["n.cases"]) 
-   X2 <- as.numeric(x_summary["statistic"]) 
-   k <- min(dim(m)) 
-   V <- sqrt(X2/(n*(k-1))) 
-   # PEARSON'S CORRELATION: REPORT CORRELATION BETWEEN THE TWO CATEGORICAL
-   # VARIABLES TEST (P) WHETHER THE CORRELATION IS EQUAL TO ZERO AND REPORTS
-   # THE 95% CONFIDENCE INTERVAL
-   cor_test     <- cor.test(attr(x,"model")$labelling,attr(y,"model")$labelling,use="pairwise.complete.obs")
-   # BIND STATISTICS SUCH AS LOG-ODD RATIO, LAMBDA-SIBS INTO A FINAL TABLE 1RST
-   # DIRECTION
-   m_html <- apply(m,1:2,html_format_numeric,fmt="%d")
-   m[m_num == 0] <- m_html[m_num == 0] <- ""
-   for(s in names(attr(x,"stats"))){
-      m_html <- cbind(m_html,data.matrix(attr(x,"stats")[[s]][["out"]]))
-      m	<- cbind(m,data.matrix(attr(x,"stats")[[s]][[2]]))
-      }
-   mat_stats <- mat_stats_html <- matrix(0,0,attr(y,"model")$G)
-   for(s in names(attr(y,"stats"))){
-      mat_stats_html <- rbind(mat_stats_html, t(attr(y,"stats")[[s]][["out"]]))
-      mat_stats <- rbind(mat_stats, t(attr(y,"stats")[[s]][[2]]))
-      }
-   mat_stats <- cbind(mat_stats, matrix(0,nrow(mat_stats),ncol(m)-attr(y,"model")$G))
-   mat_stats_html <- cbind(mat_stats_html, matrix(0,nrow(mat_stats),ncol(m)-attr(y,"model")$G))
-   dimnames(mat_stats)[[2]] <- dimnames(mat_stats_html)[[2]] <-  dimnames(m)[[2]]
-   m <- rbind(m,mat_stats)
-   m_html <- rbind(m_html,mat_stats_html)
-   # FINALLY, ORDER THE ROWS AND THE COLUMNS BY (DI)SIMILARIY, HIERARCHICAL
-   # CLUSTERING
-   ordering <- list(row=hclust(dist(m_num[1:attr(x,"model")$G,1:attr(y,"model")$G]))$order,
-                     column=hclust(dist(t(m_num[1:attr(x,"model")$G,1:attr(y,"model")$G])))$order)
-   m <- m[c(ordering$row,(attr(x,"model")$G+1):nrow(m)),
-      c(ordering$col,(attr(y,"model")$G+1):ncol(m))]
-   m_html <- m_html[c(ordering$row,(attr(x,"model")$G+1):nrow(m)),
-      c(ordering$col,(attr(y,"model")$G+1):ncol(m))]
-   # BIND CHI2 STATS
-   m <- rbind(m,"")
-   m_html <- rbind(m_html,"")
-   row.names(m)[nrow(m)] <- row.names(m_html)[nrow(m_html)] <- 'Chi2'
-   m[nrow(m),1:2] <- m_html[nrow(m_html),1:2] <- c(sprintf('%.1e',ind_test$p.value),sprintf('%.1f',ind_test$statistic))
-   # BIND CRAMER'S V ASSOCIATION STAT
-   m <- rbind(m,"")
-   m_html <-  rbind(m_html,"")
-   row.names(m)[nrow(m)] <- row.names(m_html)[nrow(m_html)] <- "Cramer's V"
-   m_html[nrow(m_html),1] <- html_format_numeric(V,fmt='%.2f') 
-   m[nrow(m),1] <- V
-   # T-TEST TO EVALUATE WHETHER THE DIFFERENCES BETWEEN THE MAP CONTINGENCY
-   # TABLE AND THE JOINT PROBABILITY DISTRIBUTION OF THE TWO FACTORS IS A
-   # RANDOM ERROR OF MEAN = 0
-   m <- rbind(m,"")
-   m_html <-  rbind(m_html,"")
-   row.names(m)[nrow(m)] <- row.names(m_html)[nrow(m_html)] <- "t-test (mapping)"
-   m[nrow(m),1] <- m_html[nrow(m_html),1] <- sprintf("%.1e",map_rand_err_test$p.value)
-   # TO QUICKEN THE LATER OPENING OF THE MANY CSV FILES,  WE REDUCE THE NUMBER
-   # OF ZEROS TO CLEAR MANUALLY. IN WRITE.CSV2 'NA' ARE SUBSTITUTED BY EMPTY
-   # STRINGS
-   m[m == "0"] <- m_html[m_html == "0"] <- ""
-   m <- as.data.frame(m)
-   m_html <- as.data.frame(m_html)
-   return(list(html=m_html,full=m))
+
+V.score <- function(x, y=NULL){
+   if(length(x) == length(y))
+      x <- as.table(ftable(x,y))
+   if(is.table(x)){
+      xSummary <- summary(x)
+      n <- as.numeric(xSummary["n.cases"]) 
+      X2 <- as.numeric(xSummary["statistic"]) 
+      k <- min(dim(x)) 
+      V <- sqrt(X2/(n*(k-1)))
+      return(V)
+   }
+   else
+      cat('x must be a table\n')
 }
 
-`fun_mbc_em` <-
+`compareModel` <-
+function(x, y=NULL, fmt=c('%d','%.2f')){
+   if((class(x) == 'cresult') & (is.null(y))){
+      m <- list()
+      mPairs <- t(combn(getBestModel(x),m=2))
+      cNames <- gsub(",","_",paste("(",apply(mPairs,1,paste,collapse=")x("),")",sep=""))
+      for(i in 1:nrow(mPairs)){
+         m1 <- x[[which(mPairs[i,1] == names(x))]]
+         m2 <- x[[which(mPairs[i,2] == names(x))]]
+         if( !is.na(attr(m1,"model")$loglik) && !is.na(attr(m2,"model")$loglik))
+            m[[cNames[i]]] <- compareModel(m1,m2)
+      }
+      return(m)
+   }
+   else if(class(x) == 'cmodel' & class(y) == 'cmodel'){
+      xLabel <- attr(x,"model")$labelling
+      yLabel <- attr(y,"model")$labelling
+      xG <- attr(x,"model")$G
+      yG <- attr(y,"model")$G
+      xyTab <- as.table(ftable(xLabel, yLabel))
+      # CHI2_STATS
+      chi2 <- chisq.test(xyTab, simulate.p.value=TRUE)
+      # CRAMER'S V 
+      V <- V.score(xLabel, yLabel)  
+      # ROW AND COLUMN ORDERING
+      rowOrder <- hclust(dist(xyTab[1:xG, 1:yG]) )$order
+      colOrder <- hclust(dist(t(xyTab[1:xG, 1:yG])))$order
+      xyTab <- xyTab[rowOrder, colOrder]
+      xyTab[xyTab == 0] <- NA
+      # BIND STATS
+      xyTab <- rbind(xyTab, CHI2=NA)
+      xyTab[nrow(xyTab),1:2] <- c(chi2$p.value, chi2$statistic)
+      xyTab <- rbind(xyTab, V=NA)
+      xyTab[nrow(xyTab),1] <- V
+      return(xyTab)
+   }
+}
+
+`clusterModelBasedEM` <-
 function(data, G=3, modelName="EII", rseed=6013) {
    G <- as.numeric(G)
    modelName <- as.character(modelName)
@@ -219,12 +171,12 @@ function(data, G=3, modelName="EII", rseed=6013) {
    return(model)
 }
 
-`stats_generalization` <-
+`funStatsGeneralization` <-
 function(data,class
    , fun_classifier=list(model=model_naive_bayes, predict=predict_naive_bayes)
-   , K=7, fun_eval=stratified_traintest_split, title = NULL) {
+   , K=7, fun_eval=splitTraintestStrata, title = NULL) {
    class                <- map(class)
-   ldata                <- cbind(get_cdata(data),class=class)
+   ldata                <- cbind(print(data),class=class)
    # INITIALIZATION
    indexes <- testfold  <- list()
    models <- predictions<- contingency.tables <- perfmeasures <- list()
@@ -242,13 +194,13 @@ function(data,class
             testfold[[k]]       <- append(testfold[[k]],row.names(ldata[ldata[,"class"] == g,][indexes[[g]][k,],]))
          testfold[[k]]          <- unlist(testfold[[k]])
          # DEFINE TRAIN AND TEST SETS
-         cdata_train            <- set_cdata(data = ldata[-pmatch(testfold[[k]], row.names(ldata)),]
+         cdata_train            <- setCdata(data = ldata[-pmatch(testfold[[k]], row.names(ldata)),]
                                                 , settings = attr(data,"settings"))
-         cdata_test             <- set_cdata(data = ldata[ pmatch(testfold[[k]], row.names(ldata)),]
+         cdata_test             <- setCdata(data = ldata[ pmatch(testfold[[k]], row.names(ldata)),]
                                                 , tdata = attr(cdata_train,"tdata")
                                                 , settings = attr(data,"settings"))
-         trainset               <- cbind(get_cdata(cdata_train),class=cdata_train[,"class"])
-         testset                <- cbind(get_cdata(cdata_test),class=cdata_test[,"class"])
+         trainset               <- cbind(print(cdata_train),class=cdata_train[,"class"])
+         testset                <- cbind(print(cdata_test),class=cdata_test[,"class"])
          # TRAIN DIFFERENT MODELS, NAMELY NAIVE BAYES, SVM AND 1-NN RK: SVM
          # USES G(G-1) CLASSIFIERS, NAIVE BAYES AND KNN ARE SINGLE MULTI-CLASS
          models[[k]]            <- fun_classifier[["model"]](as.formula("class ~ ."),trainset,testset)
@@ -288,262 +240,204 @@ function(z1, z2){
    return(m_out)
 }
 
-`generate_cdata_settings` <-
-function(data, grBreak=6){
+`genCdataSettings` <-
+function(data, grBreak=6, asCSV=FALSE){
    # DEFINE THE DEFAULT VALUES OF OUR CONF MATRIX
-   conf_col_names <- list("group","in_canalysis","fun_transform","visu_groups","visu_ycoord","heatmap_ycoord")
-   default_values <- c("factor_1",TRUE,"transform_AVG transform_SIGMA","var_group_1","NA","NA")
-   m <- matrix(default_values,ncol(data),length(default_values),byrow=TRUE,
-                  dimnames=list(colnames(data),conf_col_names))
-   m[,'heatmap_ycoord'] <- 1:nrow(m)
-   mSeq <- 1+as.integer(nrow(m)/grBreak)
-   mGroup <- matrix(c('group',NA,NA),nrow(m),3,byrow=TRUE)
+   cNames <- list('oddGroup','inCAnalysis','tFun','vParGroup','vParY','vHeatmapY')
+   dValues <- c("factor_1",TRUE,"tAvg tSigma","var_group_1","NA","NA")
+   x <- matrix(dValues,ncol(data),length(dValues),byrow=TRUE,
+                  dimnames=list(colnames(data),cNames))
+   x[,'vHeatmapY'] <- 1:nrow(x)
+   xSeq <- 1+as.integer(nrow(x)/grBreak)
+   xGroup <- matrix(c('oddGroup',NA,NA),nrow(x),3,byrow=TRUE)
    for(i in 0:(grBreak-1)){
-      mGroup[(i*mSeq+1):min((i+1)*mSeq,nrow(m)),2] <- i+1
-      mGroup[(i*mSeq+1):min((i+1)*mSeq,nrow(m)),3] <- 1:(min((i+1)*mSeq,nrow(m))-(i*mSeq))
+      xGroup[(i*xSeq+1):min((i+1)*xSeq,nrow(x)),2] <- i+1
+      xGroup[(i*xSeq+1):min((i+1)*xSeq,nrow(x)),3] <- 1:(min((i+1)*xSeq,nrow(x))-(i*xSeq))
    }
-   m[,'group'] <- m[,'visu_groups'] <- apply(mGroup[,1:2],1,paste,collapse='_')
-   m[,'visu_ycoord'] <- mGroup[,3]
-   return(m)
+   x[,'oddGroup'] <- x[,'vParGroup'] <- apply(xGroup[,1:2],1,paste,collapse='_')
+   x[,'vParY'] <- xGroup[,3]
+   if(asCSV){
+      fSettings <- paste2(today(),'_settings.csv')
+      write.csv(x,file=fSettings)
+      return(fSettings)
+   }
+   else
+      return(x)
 }
 
-`get_cdata_prcomp` <- function(x, cumproportion=0.95, scale=TRUE, center=FALSE){
+`getCdataPrcomp` <- function(x, cumproportion=0.95, scale=TRUE, center=FALSE){
    # RETRIEVE PREVIOUS PARAMETERS
    s1 <- as.matrix(attr(x,"settings"))
-   prefix <- gsub('[0-9]{4}-[0-9]{2}-[0-9]{2}_','',paste2(attr(x,"prefix"),"_ON_PRCOMP_"))
    # PRINCIPAL COMPONENTS, 95%
-   pcomp <- prcomp(x[,get_canalysis_variables(s1)], scale=scale, center=center)
+   pcomp <- prcomp(x[,getCvar(s1)], scale=scale, center=center)
    vars <- pcomp[["sdev"]]^2
    vars <- vars/sum(vars)
    first_comps <- (cumsum(vars) < cumproportion)
    pcomp <- predict(pcomp)[,first_comps]
    df2 <- cbind(x, pcomp)
    # SETTINGS
-   s2 <- generate_cdata_settings(df2)
+   s2 <- genCdataSettings(df2)
    s2[row.names(s1),] <- s1[,colnames(s2)]
-   s2[,"in_canalysis"] <- "FALSE"
-   new_names <- row.names(na.omit(s2[s2[,"visu_ycoord"] == "NA",]))
-   s2[new_names,"in_canalysis"] <- "TRUE"
-   s2[new_names,"group"] <- new_names
-   s2[new_names,"visu_groups"] <- "PCA"
-   s2[new_names,"visu_ycoord"] <- 10*(1:length(new_names)/length(new_names))
-   s2[new_names,"fun_transform"] <- "transform_AVG transform_SIGMA"
-   max_heatmap <- max(as.numeric(s2[,"heatmap_ycoord"]),na.rm=TRUE)
-   s2[new_names,"heatmap_ycoord"] <- as.character((max_heatmap+1):(max_heatmap+length(new_names)))
-   x2 <- set_cdata(data=df2, settings=s2, prefix=prefix, data_o=attr(x,'data_o'))
+   s2[,"inCAnalysis"] <- "FALSE"
+   new_names <- row.names(na.omit(s2[s2[,"vParY"] == "NA",]))
+   s2[new_names,"inCAnalysis"] <- "TRUE"
+   s2[new_names,"oddGroup"] <- new_names
+   s2[new_names,"vParGroup"] <- "PCA"
+   s2[new_names,"vParY"] <- 10*(1:length(new_names)/length(new_names))
+   s2[new_names,"tFun"] <- "tAvg tSigma"
+   max_heatmap <- max(as.numeric(s2[,"vHeatmapY"]),na.rm=TRUE)
+   s2[new_names,"vHeatmapY"] <- as.character((max_heatmap+1):(max_heatmap+length(new_names)))
+   x2 <- setCdata(data=df2, settings=s2, prefix=paste2(attr(x,"prefix"),"_PRCOMP"), data_o=attr(x,'data_o'))
    return(x2)
 }
 
-`get_cdata_princomp` <- function(x, cumproportion=0.95, scale=TRUE, center=FALSE){
+`getCdataPrincomp` <- function(x, cumproportion=0.95, scale=TRUE, center=FALSE){
    # RETRIEVE PREVIOUS PARAMETERS
    s1 <- as.matrix(attr(x,"settings"))
-   prefix <- gsub('[0-9]{4}-[0-9]{2}-[0-9]{2}_','',paste2(attr(x,"prefix"),"_ON_PRCOMP_"))
    # PRINCIPAL COMPONENTS, 95%
-   pcomp_m <- princomp(x[,get_canalysis_variables(s1)], scale=scale, center=center)
+   pcomp_m <- princomp(x[,getCvar(s1)], scale=scale, center=center)
    vars <- pcomp_m[["sdev"]]^2
    vars <- vars/sum(vars)
    first_comps <- names(vars)[cumsum(vars) < cumproportion]
    pcomp <- pcomp_m[["scores"]][,first_comps]
    df2 <- cbind(x, pcomp)
    # SETTINGS
-   s2 <- generate_cdata_settings(df2)
+   s2 <- genCdataSettings(df2)
    s2[row.names(s1),] <- s1[,colnames(s2)]
-   s2[,"in_canalysis"] <- "FALSE"
-   new_names <- row.names(na.omit(s2[s2[,"visu_ycoord"] == "NA",]))
-   s2[new_names,"in_canalysis"] <- "TRUE"
-   s2[new_names,"group"] <- new_names
-   s2[new_names,"visu_groups"] <- "PCA"
-   s2[new_names,"visu_ycoord"] <- 10*(1:length(new_names)/length(new_names))
-   s2[new_names,"fun_transform"] <- "transform_AVG transform_SIGMA"
-   max_heatmap <- max(as.numeric(s2[,"heatmap_ycoord"]),na.rm=TRUE)
-   s2[new_names,"heatmap_ycoord"] <- as.character((max_heatmap+1):(max_heatmap+length(new_names)))
-   x2 <- set_cdata(data=df2, settings=s2, prefix=prefix, data_o=attr(x,'data_o'))
+   s2[,"inCAnalysis"] <- "FALSE"
+   new_names <- row.names(na.omit(s2[s2[,"vParY"] == "NA",]))
+   s2[new_names,"inCAnalysis"] <- "TRUE"
+   s2[new_names,"oddGroup"] <- new_names
+   s2[new_names,"vParGroup"] <- "PCA"
+   s2[new_names,"vParY"] <- 10*(1:length(new_names)/length(new_names))
+   s2[new_names,"tFun"] <- "tAvg tSigma"
+   max_heatmap <- max(as.numeric(s2[,"vHeatmapY"]),na.rm=TRUE)
+   s2[new_names,"vHeatmapY"] <- as.character((max_heatmap+1):(max_heatmap+length(new_names)))
+   x2 <- setCdata(data=df2, settings=s2, prefix=paste2(attr(x,"prefix"),"_PRINCOMP"), data_o=attr(x,'data_o'))
    attr(x2,'princomp') <- pcomp_m
    return(x2)
 }
 
-`get_cdata` <-
-function(data, which_data = NULL)
-{
-   var_names <- get_canalysis_variables(attr(data,"settings"))
-   if(is.null(which_data))
-      data_out <- data[,var_names]
-   else
-      data_out <- attr(data,"data_o")[,var_names]
-   return(data_out)
-}
-
-`get_canalysis_variables` <-
-function(settings)
-{
-   which_var         <- which(settings[,"in_canalysis"] == "TRUE" | settings[,"in_canalysis"] == " TRUE")
-   return(row.names(settings)[which_var])
-}
-
-`get_fun_stats` <-
+`getStatsFun` <-
 function(fun_name="oddratios",...){
    # CHEMO-INF: CHI2TEST STATS AND RESIDUALS 
    if(fun_name == "chi2test")
-      return(function(data,class) { return(stats_chi2test(data,class,...)) })
+      return(function(data,class) { return(funStatsChi2test(data,class,...)) })
    # CHEMO-INF: JOINT DISTRIBUTION
    if(fun_name == "jointdistrib")
-      return(function(data,class) { return(stats_jointdistrib(data,class,...)) })
-   # ODD RATIOS CHARACTERIZING EACH CLUSTER
-   if(fun_name == "lambdasibs")
-      return(function(data,class) { return(stats_lambdasibs(data,class,...)) })
+      return(function(data,class) { return(funStatsJointDistrib(data,class,...)) })
    # ODD RATIOS CHARACTERIZING EACH CLUSTER
    if(fun_name == "oddratios")
-      return(function(data,class) { return(stats_logodds(data,class,...)) })
+      return(function(data,class) { return(funStatsOddratios(data,class,...)) })
    # AREA UNDER THE UNCERTAINTY CURVE
    if(fun_name == "auuc")
-      return(function(data,class) { return(stats_auuc(class)) })
+      return(function(data,class) { return(funStatsAuuc(class)) })
    # GENERALIZATION ESTIMATES OF MACHINE LEARNING ALGORITHMS
    if(fun_name == "gen_naive_bayes")
       return(function(data,class) { return(
-               stats_generalization(
-                  data,
-                  class,
-                  fun_classifier=list(model = model_naive_bayes,predict = predict_naive_bayes),
-                  title = "naive Bayes",
-                  ...)) })
+         funStatsGeneralization( data, class, title = "naive Bayes",
+            fun_classifier=list(model = model_naive_bayes,predict =
+            predict_naive_bayes), ...)) })
    if(fun_name == "gen_knn")
       return(function(data,class) { return(
-               stats_generalization(
-                  data,
-                  class,
-                  fun_classifier=list(model = model_knn,predict = predict_knn),
-                  title = "1 nearest neighbour",
-                  ...)) })
+         funStatsGeneralization( data, class, title = "1 nearest neighbour",
+            fun_classifier=list(model = model_knn,predict = predict_knn), ...))})
    if(fun_name == "gen_svm")
       return(function(data,class) { return(
-               stats_generalization(
-                  data,
-                  class,
-                  fun_classifier=list(model = model_svm,predict = predict_svm),
-                  title = "Support Vector Machine",
-                  ...)) })
+         funStatsGeneralization( data, class, title = "Support Vector Machine",
+            fun_classifier=list(model = model_svm,predict = predict_svm), ...))})
+else
+      return(function(data,class,fun=fun_name) { return(call(eval(fun), data, class,...)) })
+}
+
+`getBestModel` <-
+function(x, n=NULL){
+   bTable <- attr(attr(x,"bicanalysis"),'data')[, c("modelName","G","rseed","relativeBic")]
+   if(is.null(n))
+      idx <- 1:attr(x,"nTopModels")
+   else if(n < 1)
+      idx <- 1:length(x)
    else
-      return(NULL)
+      idx <- n
+   bestBic <- bTable[na.omit(order(bTable[,"relativeBic"], decreasing=FALSE)[idx]),]
+   bestModel  <- apply(bestBic[,c("modelName","G","rseed")],1,paste,collapse=",",sep="")
+   return(as.character(bestModel))
 }
 
-`get_best_models` <-
-function(x){
-   # TO SELECT THE OPTIMAL ONES BY RANKING, I.E. THE 5 BEST ONES 
-   bictable     <- as.data.frame(print(attr(x,"bicanalysis"))[["long"]][
-                        , c("modelName","G","rseed","relative_BIC")])
-   best_bics    <- bictable[na.omit(order(bictable[,"relative_BIC"]
-                                ,decreasing=FALSE)[1:attr(x,"nbr_top_models")]),]
-   best_models  <- apply(best_bics[,c("modelName","G","rseed")],1,paste,collapse=",",sep="")
-   return(best_models)
-}
-
-`init_data_cc` <-
+`getCdataCC` <-
 function(data,settings)
 {
-   var_names         <- get_canalysis_variables(settings)
+   var_names         <- getCvar(settings)
    data_mat          <- data[row.names(na.omit(data[,var_names])),]
    return(data_mat)
 }
 
 
-`get_long2wide_table`          <- function(x, fun_aggregate=mean, 
-   var_aggregate="BIC", var_x="G", var_y="modelName"){
-   # x <- na.omit(x)
-   tmp <- aggregate(x[, var_aggregate], by=list(var_x=x[,var_x],
-            var_y=x[,var_y]), FUN=fun_aggregate)
-   tmp <- reshape(tmp, idvar="var_x", timevar="var_y", direction="wide")
-   row.names(tmp) <- tmp[,"var_x"]
-   colnames(tmp) <- gsub(paste2("x."),"",colnames(tmp))
-   return(tmp[,-1])
+`getBicStats`          <- function(x, fun='mean', vAgg="BIC", vX="G",
+   vY="modelName", fmt='%.2f'){
+   rList <- list()
+   # DEFINE FUNCTIONS 
+   getRankArray <- function(m){return(apply(-m,c(2,3),rank))}
+   fReshape <- function(m, pX=vX, pY=vY, pZ=vAgg){
+      m <- reshape(m[,c(pX,pY,pZ)],idvar=pX, timevar=pY, direction='wide')
+      dimnames(m) <- list(m[,1], gsub(paste2(pZ,'.'),'',colnames(m)))
+      return(m[,-1])
+   }
+   fCI <- function(x,pFmt=fmt){
+      x <- quantile(x,probs=c(0.025,0.975))
+      x <- paste(sprintf(x, fmt=pFmt), collapse=', ')
+      x <- gsub('$',')',gsub('^',' (',x))
+      return(x)
+   }
+   fFun <- function(x, f=fun, pFmt=fmt){ return(sprintf(eval(call(f,x)),fmt=pFmt)) }
+   # MAKE THE ARRAY OF BIC SCORES
+   vRSeed <- unique(x[,'rseed'])
+   tmp <- fReshape(x[x$rseed == vRSeed[1],])
+   if(length(vRSeed)>1){
+      for(s in 2:length(vRSeed))
+         tmp <- abind(tmp, fReshape(x[x$rseed == vRSeed[1],]), along=3)
+      dimnames(tmp)[[3]] <- vRSeed
+      if(fun == 'rank')
+         tmp <- abind(apply(getRankArray(-tmp), c(1,2), mean, na.rm=TRUE), 
+                      apply(getRankArray(-tmp),c(1,2),fCI, pFmt=fmt),along=3) 
+      else
+         tmp <- abind(apply(tmp,c(1,2),fFun,f=fun,pFmt=fmt), apply(tmp, c(1,2), fCI, pFmt=fmt), along=3)
+      tmp <- apply(tmp,c(1,2),paste2)
+   }
+   return(tmp)
 }
 
-`set_bicanalysis` <- function(x){
-   bic_out <- bic_rseed <- ranking <- list()
-   fun_pattern <- attr(x,"fun_bic_pattern")
-   bic_table <- cbind(attr(x, "cfun_params"),BIC=NA,relative_BIC=NA)
-   # BIC_TABLE (LONG FORMAT): ABSOLUTE AND RELATIVE
+`setBicanalysis` <- function(x){
+   bicTable <- cbind(attr(x, "cfun_params"),BIC=NA,relativeBic=NA)
    for(i in 1:length(x))
-      bic_table[i,"BIC"] <- attr(x[[i]],"model")[["BIC"]]
-   bic_table[,"relative_BIC"] <- 100*(bic_table[,"BIC"]/max(bic_table[,"BIC"],na.rm=TRUE)-1)
-   bOut <- structure(as.matrix(bic_table), BIC_stats=NULL, BIC_array=NULL, class="bicanalysis")
-   rseed_vector <- unique(bic_table[,"rseed"])
-   # COMPUTE BIC STATS PATTERNS ACCORDING TO FUN_PATTERN: MEAN, SD, MEDIAN, ETC.
-   if(!is.null(fun_pattern) && length(rseed_vector)>1){
-      for(i in names(fun_pattern))
-         for(which_bic in list("BIC","relative_BIC"))
-            bic_out[[paste2(which_bic, " ", i)]] <- get_long2wide_table(bic_table, 
-               var_aggregate=which_bic, fun_aggregate=fun_pattern[[i]])
-      # PREPARE AN ARRAY OF BIC TABLES 
-      for(i in 1:length(rseed_vector)){
-         tmp <- get_long2wide_table(bic_table[bic_table[,"rseed"]==rseed_vector[i],], 
-                   var_aggregate="BIC")
-         if(i == 1)
-            bic_array <- tmp
-         else
-            bic_array <- abind(bic_array,tmp,along=3)
-      }
-      dimnames(bic_array)[[3]]  <- rseed_vector
-      # GIVEN A modelName AND G, AVERAGE RANK OF EACH RSEED
-      ranking[["Average rank of each rseed"]] <- sort(apply(apply(abs(bic_array),1:2,rank),1,patternMean))
-      # GIVEN A modelName, RANK OF G ACCROSS ALL THE RANDOM SEEDS
-      ranking[["Given a modelName, average rank of G"]] <- apply(apply(abs(bic_array),2:3,rank),1:2,patternMean)
-      # GIVEN A G, RANK OF modelName ACCROSS ALL THE RANDOM SEEDS
-      tmp_array <- apply(abs(bic_array[,,1]),1,rank)
-      for(idx in 2:dim(bic_array)[[3]])
-         tmp_array <- abind(tmp_array, apply(abs(bic_array[,,idx]),1,rank),along=3)
-      ranking[["Given a G, average rank of modelName"]] <- apply(tmp_array,1:2,patternMean)
-      ranking[["In all rseeds, the best one"]] <- matrix(NA, nrow(bic_array), ncol(bic_array), 
-                                   dimnames=list(dimnames(bic_array)[[1]], dimnames(bic_array)[[2]]))
-      ranking[["In all rseeds, the best BIC"]] <- ranking[["In all rseeds, the best one"]]
-      for(i in 1:nrow(ranking[["In all rseeds, the best one"]])){
-         for(j in 1:ncol(ranking[["In all rseeds, the best one"]])){
-            best_seed <- best_score <- NA
-            if(length(na.omit(bic_array[i,j,]))>0){
-               best_seed <- dimnames(bic_array)[[3]][which(bic_array[i,j,] == patternMax(bic_array[i,j,]))]
-               best_score<- patternMax(bic_array[i,j,])
-            }
-            ranking[["In all rseeds, the best one"]][i,j] <- best_seed
-            ranking[["In all rseeds, the best BIC"]][i,j] <- best_score
-         }
-      }
-      attr(bOut,'BIC_stats') <- append(bic_out,ranking) 
-      attr(bOut,'BIC_array') <- bic_array
-   }
-   if((!is.null(fun_pattern)) && length(rseed_vector)==1){
-      ranking[["Given a G, average rank of modelName"]] <- apply(abs(bic_out[["BIC mean"]]),1,rank)
-      ranking[["Given a modelName, average rank of G"]] <- apply(abs(bic_out[["BIC mean"]]),2,rank)
-      attr(bOut,'BIC_stats') <- ranking 
-   }
-   attr(x,"bicanalysis") <- bOut
+      bicTable[i,"BIC"] <- attr(x[[i]],"model")[["BIC"]]
+   bicTable[,"relativeBic"] <- 100*(bicTable[,"BIC"]/max(bicTable[,"BIC"],na.rm=TRUE)-1)
+   attr(x,'bicanalysis') <- structure(table(bicTable[,1:2]),data=bicTable,class='bicanalysis')
    return(x)
 }
 
-`print.bicanalysis` <- function(x,silent=TRUE,...){
-   x_out <- list()
-   x_out[["long"]] <- x[1:nrow(x),]
-   for(a_n in names(attr(x,"BIC_stats")))
-      x_out[[a_n]] <- attr(x,"BIC_stats")[[a_n]]
-   x_out[["BIC_array"]] <- attr(x,"BIC_array")
-   if(!silent)
-      print(as.data.frame(x[1:nrow(x),]))
-   return(x_out)
-}
 
 `initPlot` <- 
-function(cdata, figIdx, plotNbr=1, type='MixtModel'){
+function(cdata, figIdx, plotNbr=1, type="H"){
    # CREATE FIGURE DIRECTORY
-   dir.create(attr(cdata,'figDir'),showWarnings=FALSE)
-   figFile <- paste2(attr(cdata,'figDir'),attr(cdata,"prefix"),'_',sprintf('%03d',figIdx),'-',type,'.pdf')
-   print(figFile)
    # NUMBER OF SUBPLOT IN A FIGURE
    plotI <- plotJ <- as.integer(sqrt(plotNbr))
    if(plotI^2 < plotNbr)
       plotJ <- plotJ+1 
    # FIGURE OUTPUT
    maiParam <- attr(cdata,'mai')
-   if(type=='BB')
-      maiParam <- maiParam+c(0.5,0,0.5,0) 
-   pdf(figFile)
+   fDir <- attr(cdata,'figDir')
+   fFig <- paste2(fDir,'/oddGroup_',sprintf('%03d',figIdx),'-',type,'.pdf')
+   if(type=='H')
+      maiParam <- maiParam+c(0,0,0,0)
+   else if(type=='BB')
+      maiParam <- maiParam+c(0.5,0.2,0.5,0)
+   else{
+      maiParam <- maiParam+c(0.1,0.5,0.2,0)
+      fFig <- paste2(fDir,'/',type,'.pdf')
+      }
+   print(fFig)
+   pdf(fFig)
    par(mfrow = c(plotI,plotJ), mai=maiParam)
    figIdx <- figIdx+1
    return(figIdx)
@@ -556,14 +450,13 @@ function(){
 
 `plot.cdata` <- 
 function(x, ...) {
-   xSettings <- as.matrix(na.omit(attr(x,"settings")[,c("visu_groups","visu_ycoord")]))
-   splitGroup <- split(row.names(xSettings),xSettings[,"visu_groups"])
+   xSettings <- as.matrix(na.omit(attr(x,"settings")[,c("vParGroup","vParY")]))
+   splitGroup <- split(row.names(xSettings),xSettings[,"vParGroup"])
    figIdxBB <- figIdxH <- 1
    for(i in 1:length(splitGroup)){
       # PRODUCE BOXPLOT BY SPLIT GROUP
       figIdxBB <- initPlot(x, figIdxBB, plotNbr=1, type='BB')
-      boxplot(as.data.frame(x[,splitGroup[[i]]]),'las'=2, 
-         main=paste2(" Boxplot ",names(splitGroup)[i]) , cex.axis=1)
+      boxplot(as.data.frame(x[,splitGroup[[i]]]),'las'=2,cex=0.7, main=paste2(" Boxplot ",names(splitGroup)[i]))
       closePlot()
       figIdxH <- initPlot(x, figIdxH, plotNbr=length(splitGroup[[i]]), type='H')
       for(varName in splitGroup[[i]]){
@@ -572,7 +465,7 @@ function(x, ...) {
          xlabText <- paste2(varName,' ', length(table(x[,varName])), " values\n")
          if(length(vIdx) == 1){
             for(tn in names(attr(x,"tdata")[[vIdx]])){
-               if(tn == "transform_adjust")
+               if(tn == "tAdjust")
                   xlabText <-  paste2(xlabText, tolower(gsub("transform_","",tn))
                      , "=", attr(x,"tdata")[[vIdx]][[tn]][["print"]], " ")
                else
@@ -589,109 +482,35 @@ function(x, ...) {
 
 `plot.cresult` <- 
 function(x, query = NULL, ...) {
-   if(is.null(query))   
+   q <- query
+   if(is.null(q))   
       q <- 1:length(x)
-   else 
-      q <- query
-   nbrPlot <- length(attr(x,"fun_plot"))
+   plotNbr <- length(attr(x,"fun_plot"))
+   figIdx <- 1
    for(i in q){
       if(!is.na(attr(x[[i]],"model")$loglik)){
-         par(mfrow=mfrow, 'las'=1,'mai'=c(0.2,0.7,0.5,0.7),new=FALSE)
+         figIdx <- initPlot(attr(x,'cdata'), figIdx, plotNbr=plotNbr, type=paste2('MM-',gsub(',','_',names(x)[i])))
          for(fun_plot in unlist(attr(x,"fun_plot")))
             try(fun_plot(x[[i]]))
+         closePlot()
       }
    }
 }
 
-`html_format_cells` <- function(x, fmt="%.2f", quant_threshold=quantile(c(-1,1),probs=seq(0,1,0.333))){
-   x_nbr <- as.numeric(x) 
-   col_vector <- brewer.pal(length(quant_threshold)+1,"OrRd")
-   if(!is.na(x_nbr)){
-      #x <- gsub("\\.00","",gsub("^0\\.",".",sprintf(fmt,x)))
-      x <- sprintf(fmt,x)
-      for(i in 1:length(quant_threshold)){
-         if(x_nbr <= quant_threshold[i])
-            x <- paste2("<font style='background-color:",col_vector[1+i],";text-align:right;'>",x,"</font>")
-         if((i == length(quant_threshold)) && (x_nbr >= quant_threshold[i]))
-            x <- paste2("<font style='background-color:",col_vector[1+i],";text-align:right;'>",x,"</font>")
-      }
-   }
-   else
-      x <- ""
-   return(x)
-}
-
-`html_format_numeric` <- function(x, fmt="%.2f", col_threshold=c(-1,1)){
-   x_nbr <- as.numeric(x) 
-   if(!is.na(x_nbr)){
-      x <- paste2("<div align='right'>" 
-                , gsub("\\.00","",gsub("^0\\.",".",sprintf(fmt,x))) 
-                , "</div>")
-      if(x_nbr >= col_threshold[2])
-         x <- paste2("<font color='red'>",x,"</font>")
-      if(x_nbr <= col_threshold[1])
-         x <- paste2("<font color='blue'>",x,"</font>")
-   }
-   else
-      x <- ""
-   return(x)
-}
-
-`print.cresult` <- 
-function(x, html = TRUE, img=FALSE, img_size=c(1024,1024),...) {
-   x_comp <- compare_cresult(x)
-   x_out <- print(attr(x,"bicanalysis"))
-   x_out[["Best models"]] <- get_best_models(x)
-   x_csv <- x_out 
-   if(html){
-      for(p_name in names(x_comp)){
-         pxcomp <- as.matrix(x_comp[[p_name]][["full"]])
-         pxcomp2 <- as.matrix(x_comp[[p_name]][["html"]])
-         row.names(pxcomp) <-row.names(pxcomp2) <- gsub("_[-]?0\\.0","",row.names(pxcomp2))
-         colnames(pxcomp) <- colnames(pxcomp2) <- gsub("_[-]?0\\.0","",colnames(pxcomp2))
-         x_out[[p_name]] <- pxcomp2
-         x_csv[[p_name]] <- pxcomp
-      }
-      f_out <- paste2(attr(x,"prefix"),"_report")
-      HTMLStart(outdir=getwd(), filename=f_out, HTMLframe=TRUE
-         , CSSFile="R2HTML.css", Title=attr(x,"prefix"))
-      for(i in sort(names(x_out))){
-         a_name <- gsub(" ","%20",i)
-         HTML.title(paste2("<a name='",a_name,"'>&nbsp;</a>",i))
-         file_csv <- paste2(attr(x,"prefix"),"_",i,".csv")
-         HTML(paste2("<a href=",f_out,"_main.html#",a_name," target=main>",i,"</a>", 
-            " (<a href='./",file_csv,"' target=main>CSV file</a>)"), file=paste2(f_out,"_menu.html"))
-         write.table(x_csv[[i]], na="", dec=",", sep=";", file=file_csv)
-         HTML(x_out[[i]],align="left")
-      }
-      if(img){
-         for(m_name in names(x)){
-            file_img <- plot(x,query = m_name,device="PNG", title=m_name)
-            HTMLInsertGraph(file_img,Caption = paste2("Figure. Graphic characteristics of model ",m_name)
-                  , GraphBorder = 0, WidthHTML=img_size[1],HeightHTML=img_size[2])
-         }
-      }
-      HTMLStop()
-   }
-   else
-      return(x_csv)
-}
-
-`fun_cmodel` <-
+`doModeling` <-
 function(x) {
-   # RETRIEVE DATA FOR THE CANALYSIS
-   cdata        <- get_cdata(attr(x,"cdata"))
+   cdata        <- print(attr(x,"cdata"))
    for(i in 1:length(x)){
       cat("\n",names(x)[[i]])
       attr(x[[i]],"model") <- x[[i]](x[[i]],cdata)
       if(!is.na(attr(x[[i]],"model")$loglik)){
-         cdata_l <- attr(x,"cdata")[,order(attr(attr(x,"cdata"),"settings")[,"heatmap_ycoord"],na.last=NA)] 
+         cdata_l <- attr(x,"cdata")[,order(attr(attr(x,"cdata"),"settings")[,"vHeatmapY"],na.last=NA)] 
          cdata_l <- cbind(cdata_l,class=attr(x[[i]],"model")[["labelling"]])
          cat("-> Patterns")
          # COMPUTE PATTERNS
          attr(x[[i]],"pattern") <- NULL
          for(p in names(attr(x,"fun_pattern")))
-            attr(x[[i]],"pattern")[[p]] <- compute_pattern(cdata_l,attr(x,"fun_pattern")[[p]])
+            attr(x[[i]],"pattern")[[p]] <- doPattern(cdata_l,attr(x,"fun_pattern")[[p]])
          # FOR ORDERING, MAKE A DENDROGRAM FROM THE CENTER PATTERN (NUMBER 1)
          if(!is.null(attr(x[[i]],"pattern"))){
             cat("-> Dendros")
@@ -702,7 +521,6 @@ function(x) {
             cat("-> Ordering")
             for(p in names(attr(x,"fun_pattern")))
                attr(x[[i]],"pattern")[[p]] <- attr(x[[i]],"pattern")[[p]][attr(x[[i]],"dendro_cluster")$order,]
-   #                                                , rev(sort(colnames(avg_p)))]
             attr(x[[i]],"pattern")[["class_count"]] <- table(cdata_l[,"class"])[attr(x[[i]],"dendro_cluster")$order]
             # SELECT DIVERGING COLORS FROM RColorBrewer
             attr(x[[i]],"cluster_colors") <- brewer.pal(nrow(avg_p),"Set1")
@@ -714,8 +532,10 @@ function(x) {
             attr(x[[i]],"stats")[[n]] <- fun_stats[[n]](data=attr(x,"cdata"), class=attr(x[[i]],"model")[["z"]])
       }
    }
-   # WRITE A BIC SCORE TABLE AS AN OUTPUT
-   x <- set_bicanalysis(x)
+   x <- setBicanalysis(x)
+   fSave <- paste2(attr(attr(x,"cdata"),'baseDir'),"/IMAGE.RData")
+   cat("\nSave modeling into ",fSave,'\n')
+   save(list='x', file=fSave)
    return(x)
 }
 
@@ -763,15 +583,11 @@ function(model, testset){
 `write.cresult` <-
 function(x, query = NULL){
    if(is.null(query))
-      query             <- get_best_models(x)
+      query             <- getBestModel(x)
    for(q in query){
-      model             <- attr(x[[q]], "model")
-      out               <- cbind(model[["z"]], class=map(model[["z"]]))
-      colnames(out)[1:(ncol(out)-1)] <- 1:(ncol(out)-1)
-      csv_output        <- paste2(attr(x,"prefix"), '_'
-                                , gsub(",","_",q),".csv") 
-      print(csv_output)
-      write.csv2(out,file=csv_output)
+      fCSV        <- paste2(attr(attr(x,'cdata'),'tabDir'),'/MM_',gsub(",","_",q),".csv") 
+      print(fCSV)
+      write.csv2(print(x[[q]]), file=fCSV)
    }
 }
 
@@ -799,19 +615,17 @@ function(x, query = NULL){
    return(sd(x,na.rm=TRUE))
 }
 
-`set_cresult` <-
-function(cdata=NULL, cfun=fun_mbc_em, cfun_settings=list(modelName=c("EII",
+`setCresult` <-
+function(cdata=NULL, cfun=clusterModelBasedEM, cfun_settings=list(modelName=c("EII",
    "VII"), G=3:5, rseed=6013:6015), fun_pattern=list(mean=patternMean,
    median=patternMedian, lowquant=patternLowquant, upquant=patternUpquant) ,
-   fun_plot=list(plot_parcoord=get_plot_fun(type="plot_parcoord"),
-   plot_legend=get_plot_fun(type="plot_legend"),
-   plot_image=get_plot_fun(type="plot_image"),
-   plot_dendro_cluster=get_plot_fun(type = "plot_dendro_cluster"),
-   plot_dendro_var=get_plot_fun(type="plot_dendro_var")),
-   fun_stats=list(oddratios=get_fun_stats(fun_name="oddratios")),
-   fun_bic_pattern=list(mean=patternMean, median=patternMedian,
-   lowquant=patternLowquant, upquant=patternUpquant, sd=patternSd),
-   nbr_top_models=5){
+   fun_plot=list(plotParcoord=getPlotFun(type="plotParcoord"),
+   plot_legend=getPlotFun(type="plot_legend"),
+   plot_image=getPlotFun(type="plot_image"),
+   plot_dendro_cluster=getPlotFun(type = "plot_dendro_cluster"),
+   plot_dendro_var=getPlotFun(type="plot_dendro_var")),
+   fun_stats=list(oddratios=getStatsFun(fun_name="oddratios")),
+   nTopModels=5){
    # COMPUTES THE COMBINATION OF THE CLUSTERING FUNCTION PARAMETERS 
    param_set_df         <- cfun_settings[[1]]
    i <- 2
@@ -838,15 +652,15 @@ function(cdata=NULL, cfun=fun_mbc_em, cfun_settings=list(modelName=c("EII",
    cresult_out <- structure(cresult_out, cdata=cdata,
       prefix=attr(cdata,"prefix"), cfun_params=param_set_df,
       fun_plot=fun_plot2, fun_stats=fun_stats, fun_pattern=fun_pattern,
-      fun_bic_pattern=fun_bic_pattern, nbr_top_models=nbr_top_models,
-      bicanalysis=NULL, rinfo=sessionInfo(), class = "cresult")
+      nTopModels=nTopModels, bicanalysis=NULL, rinfo=sessionInfo(),
+      class = "cresult")
    return(cresult_out)
 }
 
-`set_cdata` <-
-function(data, data_o = NULL, tdata = NULL, settings, init_fun = list(init_data_cc), prefix =""){
+`setCdata` <-
+function(data, data_o = NULL, tdata = NULL, settings, init_fun = list(getCdataCC), prefix =""){
    tdata_list <- list()
-   settings <- settings[row.names(settings)[!is.na(settings[,"group"])],]
+   settings <- settings[row.names(settings)[!is.na(settings[,"oddGroup"])],]
    # BACKUP DATA INTO DATA_O 
    if(is.null(data_o) )
       data_o <- data
@@ -855,23 +669,32 @@ function(data, data_o = NULL, tdata = NULL, settings, init_fun = list(init_data_
       data <- fun(data,settings)
    # TRANSFORM THE DATA
    data <- data[,row.names(settings)]
-   t_result <- transform_cdata(data,settings,tdata)
+   t_result <- getCdata(data,settings,tdata)
    data_out <- data.matrix(t_result[["data"]])
    tdata_out <- t_result[["tdata"]]
-   cdata_out <- structure(data_out
-                        , data_o        = data_o  
-                        , tdata         = tdata_out
-                        , settings      = settings 
-                        , prefix        = paste2(today(),"_",prefix)
-                        , xlim          = c(-3,3)
-                        , ylim          = c(0,50)
-                        , mai           = c(0.6,0.3,0.05,0.05)
-                        , figDir  = 'figures/' 
-                        , class         = "cdata")
+   baseDir <- paste2(today(),"_",prefix)
+   lIdx <- 1
+   dirTmp <- paste2(baseDir,'-',letters[lIdx])
+   while(!dir.create(dirTmp, showWarnings=FALSE)){
+      lIdx <- lIdx+1
+      dirTmp <- paste2(baseDir,'-',letters[lIdx])
+      if(lIdx > length(letters))
+         break
+   }
+   baseDir <- dirTmp
+   figDir <- paste2(baseDir,'/figures')
+   tabDir <- paste2(baseDir,'/tables')
+   dir.create(figDir, showWarnings=FALSE)
+   dir.create(tabDir, showWarnings=FALSE)
+   cdata_out <- structure(data_out, data_o  = data_o  , tdata   = tdata_out ,
+            settings= settings , xlim    = c(-3,3) , ylim    = c(0,50) , mai
+            = c(0.6,0.3,0.05,0.05) , prefix = prefix, baseDir = baseDir ,
+            figDir  = figDir , tabDir  = tabDir , rinfo = sessionInfo(), class
+            = "cdata")
    return(cdata_out)
 }
 
-`plot_parcoord` <- 
+`plotParcoord` <- 
 function(xlim = c(-3,3)
       , cex = NULL
       , title = NULL
@@ -881,9 +704,9 @@ function(xlim = c(-3,3)
       T_s <- as.matrix(T_s)
       min2 <- function(x){if(min(x)<0){return(min(x))}else{return(0)}}
       max2 <- function(x){if(max(x)>10){return(max(x))}else{return(10)}}
-      ylim<- c(min2(as.numeric(T_s[,"visu_ycoord"])),max2(as.numeric(T_s[,"visu_ycoord"])))
+      ylim<- c(min2(as.numeric(T_s[,"vParY"])),max2(as.numeric(T_s[,"vParY"])))
       plot(x=0 ,new=TRUE ,ann=FALSE ,pch=18,col="white",axes=FALSE ,xlim=xlim , ylim=ylim)
-      title(main = paste2("(",paste(as.matrix(attr(cmodel, "cfun_settings")),collapse=","),") ",title), cex = cex * 0.8)
+      title(main = paste2("(",paste(as.matrix(attr(cmodel, "cfun_settings")),collapse=","),") ",title), cex=cex)
       for(x_name in pattern){
          pattern <- attr(cmodel,"pattern")[[x_name]][,row.names(T_s)]
          lwd <- 3
@@ -893,7 +716,7 @@ function(xlim = c(-3,3)
             lty <- "dashed"
          }
          for(g in 1:nrow(pattern)){
-            D_i_s <- cbind(X=as.numeric(pattern[g,]),Y=as.numeric(T_s[,"visu_ycoord"]))
+            D_i_s <- cbind(X=as.numeric(pattern[g,]),Y=as.numeric(T_s[,"vParY"]))
             D_i_s <- D_i_s[sort.list(D_i_s[,"Y"]),]
             gap <- 1.05*abs(median(D_i_s[1:(nrow(D_i_s)-1),"Y"] - D_i_s[2:nrow(D_i_s),"Y"]))
             for(l in 1:(nrow(D_i_s)-1))
@@ -905,29 +728,29 @@ function(xlim = c(-3,3)
       fv_idx <- 1:nrow(T_s)
       if(nrow(T_s) > 20)
          fv_idx <- as.integer(quantile(1:nrow(T_s)))
-      axis(2,at=as.numeric(T_s[fv_idx,"visu_ycoord"]),labels=colnames(pattern)[fv_idx],las=2,tick=FALSE)
-      axis(1,at=seq(from = xlim[1] , to = xlim[2], by = (xlim[2] - xlim[1])/4))
+      axis(2,at=as.numeric(T_s[fv_idx,"vParY"]),labels=colnames(pattern)[fv_idx],las=2,tick=FALSE)
+      axis(1,at=seq(from = xlim[1] , to = xlim[2], by = (xlim[2] - xlim[1])/4),cex=cex)
    })
 } 
 
-`get_plot_fun` <- function(type="plot_parcoord", title=NULL, xlim=c(-3, 3), zlim=c(-2,2),
-   xy=c(-2.2, 0), cex=0.9, pattern="mean",
+`getPlotFun` <- function(type="plotParcoord", title=NULL, xlim=c(-3, 3), zlim=c(-2,2),
+   xy=c(-2.2, 0), cex=0.7, pattern="mean",
    color_gradient=rev(brewer.pal(9,"RdBu")),range_fv=NULL){
 #   color_gradient=colorRampPalette(rev(brewer.pal(11,"RdBu")))(8)){
    return(function(cdata){
-      return(get_plot_fun2(type=type, cdata=cdata, xlim=xlim, xy=xy, cex=cex,
+      return(getPlotFun2(type=type, cdata=cdata, xlim=xlim, xy=xy, cex=cex,
          title=title, pattern=pattern, color_gradient=color_gradient,range_fv=range_fv, zlim=zlim))
       })
 }
 
-`get_plot_fun2` <- function(type, cdata, title, xlim, xy, cex, pattern,
+`getPlotFun2` <- function(type, cdata, title, xlim, xy, cex, pattern,
    color_gradient,range_fv,zlim){
-   if(type == "plot_parcoord"){
+   if(type == "plotParcoord"){
       cfun_parcoord     <- c()
-      for(v in unique(as.character(attr(cdata,"settings")[,"visu_groups"]))){
+      for(v in unique(as.character(attr(cdata,"settings")[,"vParGroup"]))){
          if(!is.na(v)){
-            T_s            <- na.omit(attr(cdata,"settings")[attr(cdata,"settings")[,"visu_groups"] == v,])
-            lfun           <- eval(call("plot_parcoord",xlim = xlim , cex = cex , title = v, T_s = T_s , pattern = pattern))
+            T_s            <- na.omit(attr(cdata,"settings")[attr(cdata,"settings")[,"vParGroup"] == v,])
+            lfun           <- eval(call("plotParcoord",xlim = xlim , cex = cex , title = v, T_s = T_s , pattern = pattern))
             cfun_parcoord  <- c(cfun_parcoord, lfun)
          }
       }
@@ -991,7 +814,7 @@ function(xlim = c(-3,3)
            })
 }
 
-`set_tdata` <-
+`setTdata` <-
 function(testimate=NULL,var=NULL){
   tdata_out <- structure(
        testimate
@@ -1000,97 +823,22 @@ function(testimate=NULL,var=NULL){
   return(tdata_out)
 }
 
-`sibships_by_pairs` <-
-function(data){
-	# REMOVE INDIVIDUALS IN SIBSHIPS >= 3
-	individual_list <- dimnames(data[data[,"family"]  %in% names(table(data[,"family"])[table(data[,"family"])>=2]) ,])[[1]]
-	# FOR EACH FAMILY (ROW), LIST THE ASCERTAINED SIBLINGS (COLUMNS: 1,2,3,4,5)
-	sibling_list		<- reshape(data[individual_list,c("UNIEK","family","member")],
-							timevar="member", idvar="family", direction="wide")
-	siblingpair_list	<- c()
-	# FOR EACH FAMILY, CONSIDER ONLY THE TWO FIRST SIBLINGS
-	for(s in 1:nrow(sibling_list))
-		siblingpair_list<- rbind(siblingpair_list,t(sibling_list[s,!is.na(sibling_list[s,])][2:3]))
-	return(list(data=data[siblingpair_list,],model=NULL,tfun="sibpairs"))
-}
-
-`stats_lambdasibs` <-
-function(data,class)
-{
-   class <- map(class)
-   b <- as.data.frame(cbind(data,class = class))
-   b <- reshape(b[,c("family","member","class")],timevar="member",idvar="family",direction="wide")
-   b <- b[,-1]
-   # MAKE A DATA STRUCTURE FROM PREVIOUSLY RESHAPED 'B' SPARSE MATRIX 
-   # . IN THE 1ST COLUMN THE PROBANT, 
-   # . IN THE 2ND ITS SIBLING 
-   # . ALL THE NA'S ARE REMOVED
-   for(j in 1:2)
-      for(i in 1:nrow(b))
-         while(is.na(b[i,j]))
-            b[i,j:(ncol(b)-1)] <- b[i,(j+1):ncol(b)]
-   b <- b[,1:2]
-   class_set            <- levels(factor(as.matrix(class)))
-   sibship_size		<- dim(b)[[1]]
-   rowNames		<- c("Counts","P_cl","var_cl","P_cl_s1","P_cl_s2","P_cl_s1_s2",
-                                          "var_cl_s1_s2","cov_P_cl_P_cl_s1_s2","lambdaSib","var_lambda",
-                                          "se_lambda","ci_lambda","Significant?")
-   s                    <- as.data.frame(matrix(0,length(rowNames),length(class_set)+1))
-   # SET DIM NAMES FOR THE RESULT TABLE 'S'
-   dimnames(s)[[1]]     <- rowNames
-   dimnames(s)[[2]]     <- c(class_set,"Total")
-   # COUNT THE NUMBER OF INDIVIDUALS IN EACH CLASS
-   s["Counts",names(table(class))] <- table(class)
-   s["Counts","Total"]  <- sum(s["Counts",names(table(class))])
-   # P_cl          := CLASS PREVALENCE
-   s["P_cl",]           <- s["Counts",]/s["Counts","Total"]
-   # var_cl        := VAR( CLASS PREVALENCE ESTIMATE)
-   s["var_cl",]         <- s["P_cl",]*(1-s["P_cl",])/s["Counts","Total"]
-   # P_cl_s1       := CLASS PREVALENCE FOR SIB_1
-   s["P_cl_s1",]        <- c(table(factor(b[,1],levels=levels(as.factor(class)))),sibship_size)/sibship_size
-   # P_cl_s2       := CLASS PREVALENCE FOR SIB_2
-   s["P_cl_s2",]        <- c(table(factor(b[,2],levels=levels(as.factor(class)))),sibship_size)/sibship_size
-   # P_cl_s1_s2    := P ( s_i^1 AND s_i^2 )
-   for(i in as.numeric(class_set))
-            s["P_cl_s1_s2",as.character(i)] <- dim(b[b[,1] == i & b[,2] == i,])[[1]]/sibship_size
-   # var_cl_s1_s2  := VAR (P ( s_i^1 AND s_i^2 ))
-   s["var_cl_s1_s2",] <- s["P_cl_s1_s2",]*(1-s["P_cl_s1_s2",])/sibship_size
-   # lambdasib     := ESTIMATION OF THE RISK RATIO
-   s["lambdaSib",]    <- s["P_cl_s1_s2",]/s["P_cl",]^2
-   # "cov_P_cl_P_cl_s1_s2",
-   s["cov_P_cl_P_cl_s1_s2",] <- s["P_cl_s1_s2",]*(1-s["P_cl",])/s["Counts","Total"]
-   # var_lambda
-   s["var_lambda",]   <- (1/s["P_cl",]^4)*(s["var_cl_s1_s2",]
-                                    -4*s["cov_P_cl_P_cl_s1_s2",]*s["P_cl_s1_s2",]/s["P_cl",]
-                                    +4*s["var_cl",]*(s["P_cl_s1_s2",]/s["P_cl",])^2)
-   # se_lambda
-   s["se_lambda",]   <- sqrt(s["var_lambda",]) 
-   # ci_lambda
-   s["ci_lambda",]   <- 1.96*s["se_lambda",]
-   s["Significant?",]<- (s["lambdaSib",]-s["ci_lambda",])>1
-   s["Significant?","Total"]<- sum(s["Significant?",1:length(class_set)])
-   #
-   s <- t(s[,1:length(class_set)])
-   s_out <- apply(s, 1:2, html_format_numeric, fmt='%.1f')
-   return(list(out=s_out,s))
-}
-
-`stats_logodds` <-
+`funStatsOddratios` <-
 function(data,class,fun_midthreshold=median){
    #
    nclass <- ncol(class)
    class <- map(class, warn=FALSE)
    ldata <- cbind(data,class=class)
-   sgroup <- as.data.frame(na.omit(attr(data,"settings")[,c("visu_groups","group")]))
-   s <- matrix(0,nclass, length(unique(sgroup[,"group"])),
-                dimnames=list(1:nclass, sort(unique(sgroup[,"group"]))))
+   sgroup <- as.data.frame(na.omit(attr(data,"settings")[,c("vParGroup","oddGroup")]))
+   s <- matrix(0,nclass, length(unique(sgroup[,"oddGroup"])),
+                dimnames=list(1:nclass, sort(unique(sgroup[,"oddGroup"]))))
    class_vector <- 1:nclass
-   gr_vector <- sort(unique(as.character(sgroup[,"group"])))
+   gr_vector <- sort(unique(as.character(sgroup[,"oddGroup"])))
    nrow2 <- function(x){y <- nrow(x) ; if(is.null(y)){return(0)}else{return(y)}}
    sum2 <- function(x){if(!is.null(dim(x))){return(apply(x,1,sum))}else{return(x)}}
    # FOR EACH HIERARCHICAL SUBSET OF OUTCOMES, MAKE SUM SCORES
    for(gr in gr_vector){
-      m <- cbind(SScore=sum2(ldata[,row.names(sgroup[sgroup[,"group"]==gr,])]),class=class)
+      m <- cbind(SScore=sum2(ldata[,row.names(sgroup[sgroup[,"oddGroup"]==gr,])]),class=class)
       # FOR EACH PATTERN, DERIVE ITS STATISTIC
       for(g in class_vector){
          middleScore <- fun_midthreshold(m[,"SScore"],na.rm=TRUE)
@@ -1104,11 +852,10 @@ function(data,class,fun_midthreshold=median){
          # dimnames(s)[[2]][match(gr,gr_vector)] <- paste(gr,sprintf("%.1f",middleScore),sep="_",collapse="")
       }
    }
-   s_out <- apply(s, 1:2, html_format_numeric, fmt='%.1f')
-   return(list(out=s_out,s))
+   return(s)
 }
 
-`stats_chi2test` <- 
+`funStatsChi2test` <- 
 function(data, class, class_col='Class', probs=seq(0,1,0.4)[2:3]){
    ldata <- cbind(data, modelClass=map(class))
    ldata <- cbind(ldata, target=as.character(attr(data,'data_o')[row.names(ldata),class_col]))
@@ -1116,21 +863,18 @@ function(data, class, class_col='Class', probs=seq(0,1,0.4)[2:3]){
    s <- cbind(s_test[["residuals"]]^2, chi2test=NA)
    s[1:2,"chi2test"] <- c(sprintf('%.1e',s_test[["p.value"]]), sprintf('%.1f',s_test[["statistic"]]))
    colnames(s)[match("chi2test",colnames(s))] <- paste2(class_col, " (residual)")
-   s_out <- apply(s, 1:2, html_format_cells, fmt='%.1f' 
-      , quant_threshold=quantile(as.numeric(s_test[["residuals"]]^2), probs=probs))
-   return(list(out=s_out,s))
+   return(s)
 }
 
-`stats_jointdistrib` <- 
+`funStatsJointDistrib` <- 
 function(data, class, class_col='Class'){
    ldata <- cbind(data, modelClass=map(class))
    ldata <- cbind(ldata, target=as.character(attr(data,'data_o')[row.names(ldata),class_col]))
    s <- xtabs( ~.,ldata[,c("modelClass","target")])
-   s_out <- apply(s, 1:2, html_format_numeric, fmt='%d')
-   return(list(out=s_out,s))
+   return(s)
 }
 
-`stratified_traintest_split` <-
+`splitTraintestStrata` <-
 function(data,K=10,perc=0.7,rseed = 6013){
    indexes <- list()
    G <- length(table(data[,"class"]))
@@ -1150,84 +894,84 @@ function(){
    return(tmp_date)
 }
 
-`transform_ABSMAX` <-
+`tAbsMax` <-
 function(data,tdata){
    vdata        <- data[,attr(tdata,"var")]
    tfun         <- list(function(x){return(max(abs(x),na.rm=TRUE))}
                       , function(x){return(do.call('/',x))})
-   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
+   return(doTdata(data=vdata,tfun=tfun,tdata=tdata))
 }
 
-`transform_ALL` <-
+`doTdata` <-
 function(data,tfun=list(function(x){return(0)},function(x){return(do.call('+',x))}),tdata){
    if(is.null(attr(tdata,"tfun"))) 
       testimate         <- tfun[[1]](data)
    else 
       testimate         <- as.numeric(tdata)
    vdata                <- tfun[[2]](list(data,testimate))
-   tdata_out            <- set_tdata(testimate=testimate,var=attr(tdata,"var"))
+   tdata_out            <- setTdata(testimate=testimate,var=attr(tdata,"var"))
    return(list(data=vdata,tdata=tdata_out))
 }
 
 
-`transform_AVG` <-
+`tAvg` <-
 function(data,tdata){
    vdata        <- data[,attr(tdata,"var")]
    tfun         <- list(function(x){return(mean(x,na.rm=TRUE))}
                       , function(x){return(do.call('-',x))})
-   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
+   return(doTdata(data=vdata,tfun=tfun,tdata=tdata))
 }
 
-`transform_L1` <-
+`tL1` <-
 function(data,tdata){
    vdata        <- data[,attr(tdata,"var")]
    tfun      <- list(function(x){return(x/sqrt(sum(x,na.rm=TRUE)))}
                       , function(x){return(do.call('/',x))})
-   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
+   return(doTdata(data=vdata,tfun=tfun,tdata=tdata))
 }
 
-`transform_L2` <-
+`tL2` <-
 function(data,tdata){
    vdata        <- data[,attr(tdata,"var")]
    tfun      <- list(function(x){return(x/sqrt(sum(x^2,na.rm=TRUE)))}
                       , function(x){return(do.call('/',x))})
-   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
+   return(doTdata(data=vdata,tfun=tfun,tdata=tdata))
 }
 
-`transform_MAX` <-
+`tMax` <-
 function(data,tdata){
    vdata        <- data[,attr(tdata,"var")]
    tfun         <- list(function(x){return(max(x,na.rm=TRUE))}
                       , function(x){return(do.call('-', x))})
-   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
+   return(doTdata(data=vdata,tfun=tfun,tdata=tdata))
 }
 
-`transform_MEDIAN` <-
+`tMedian` <-
 function(data,tdata){
    vdata        <- data[,attr(tdata,"var")]
    tfun         <- list(function(x){return(median(x,na.rm=TRUE))}
                       , function(x){return(do.call('-',x))})
-   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
+   return(doTdata(data=vdata,tfun=tfun,tdata=tdata))
 }
 
-`transform_MIN` <-
+`tMin` <-
 function(data,tdata){
    vdata        <- data[,attr(tdata,"var")]
    tfun       <- list(function(x){return(min(x,na.rm=TRUE))}
                       , function(x){return(do.call('-',x))})
-   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
+   return(doTdata(data=vdata,tfun=tfun,tdata=tdata))
 }
 
-`transform_SIGMA` <-
+`tSigma` <-
 function(data,tdata){
    vdata        <- data[,attr(tdata,"var")]
    tfun         <- list(function(x){sd_est <- sd(x,na.rm=TRUE) ; if(sd_est>0) return(sd_est) else return(1)}
                       , function(x){return(do.call('/', x))})
-   return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
+   return(doTdata(data=vdata,tfun=tfun,tdata=tdata))
 }
 
 
-`transform_adjust` <-
+`tAdjust` <-
 function(data, tdata, tformula){
    var          <- strsplit(tformula,"~")[[1]][1]
    data         <- as.data.frame(data)
@@ -1235,7 +979,7 @@ function(data, tdata, tformula){
       print(tformula)
       tdata_lm          <- lm(as.formula(tformula),data=data)
       tdata_lm[["print"]]<- tformula
-      tdata             <- set_tdata(tdata_lm,var=attr(tdata,'var'))
+      tdata             <- setTdata(tdata_lm,var=attr(tdata,'var'))
       # AS THE VARS WHICH ARE NOT INVOLVED IN THE CANALYSIS MAY HAVE MISSING
       # VALUES, TO PRESERVE THE NA'S WE REBUILD A MATRIX DATA STRUCTURE WHICH
       # SERVES TO INDEX PROPERLY THE RESIDUALS. AND WE RETURN A SIMPLE NUMERIC 
@@ -1250,7 +994,7 @@ function(data, tdata, tformula){
    return(list(data=vdata,tdata=tdata))
 }
 
-`transform_cdata` <-
+`getCdata` <-
 function(data,settings,tdata=NULL){
    # BEFORE TRANSFORMING THE DATA, CONVERT IT TO NUMERIC
    data <- data.matrix(data)
@@ -1262,8 +1006,8 @@ function(data,settings,tdata=NULL){
       if(length(tdata_idx) == 0) 
          tdata[[var]]  <- list()
       # USE (MULTIPLE)-SPACES AS SEPARATOR BETWEEN TRANSFORMATION FUNCTIONS
-      fun_transform             <- strsplit(settings[var,"fun_transform"],"[ ]+")[[1]]
-      for(lfun in fun_transform){
+      tFun             <- strsplit(settings[var,"tFun"],"[ ]+")[[1]]
+      for(lfun in tFun){
          if(is.na(lfun)) 
             break ;
          # IN CASE 'LFUN' AS AN INSIDE PARAMETER, RETRIEVE IT (1) REPLACE ALL
@@ -1272,7 +1016,7 @@ function(data,settings,tdata=NULL){
          lfun                   <- gsub("\"","'",lfun,extended=FALSE)
          lfun                   <- strsplit(gsub("')","",gsub("('"," ",lfun,extended=FALSE),extended=FALSE),"[ ]+")[[1]]
          if(length(tdata_idx) == 0)
-            tdata_var_lfun      <- set_tdata(testimate=NULL,var=var)
+            tdata_var_lfun      <- setTdata(testimate=NULL,var=var)
          else
             tdata_var_lfun      <- tdata[[var]][[lfun[1]]]
          arg_list               <- list(data,tdata=tdata_var_lfun)
@@ -1290,7 +1034,7 @@ function(data,settings,tdata=NULL){
    return(list(data=data,tdata=tdata))
 }
 
-`perform_chi2_tests` <- 
+`doChi2Testing` <- 
 function(m,tonominal=FALSE,simulate.p.value = TRUE, B = 10000){
    m2 <- m
    if(tonominal)
@@ -1316,52 +1060,6 @@ function(m,tonominal=FALSE,simulate.p.value = TRUE, B = 10000){
    return(apvalues)
 }
 
-`word_cloud_analysis` <- 
-function(m, convert2nominal=NA,title=NA,filename="WC",test_threshold=0.05,magn=0.05,css_style="font-family:times;",colors=c('#fddbc7','#d1e5f0')){
-   HTMLStart(outdir="./",filename=paste2(today(),filename),HTMLframe=FALSE, Title=title,autobrowse=FALSE)
-   HTML(title)
-   a <- htmlTable <- matrix("",0,length(unique(m[,"class"])))
-   for(f in colnames(m[,-grep("class", colnames(m))])){
-      tonominal <- f %in% convert2nominal
-      X2 <- perform_chi2_tests(m[,c(f,"class")], tonominal=tonominal)
-      a <- rbind(a, X2)
-      line <- matrix("",1,ncol(htmlTable))
-      for(j in 1:ncol(X2)){
-         for(i in 1:nrow(X2)){
-            if(abs(X2[i,j]) <= test_threshold){
-               line[j] <- paste2(line[j],"<font style='",css_style,
-                                 ";background-color:",colors[as.integer(1.5+sign(X2[i,j])/2)],
-                                 ";font-size:", -log(abs(X2[i,j]))*magn, "cm'>", 
-                                 row.names(X2)[i], "</font><br>")
-            }
-         }
-      }
-      htmlTable <- rbind(htmlTable,line)
-   }
-   a <- matrix(as.numeric(a),nrow(a),ncol(a),dimnames=list(sub("> med ","",row.names(a)),colnames(a)))
-   row.names(htmlTable) <- colnames(m[,-grep("class", colnames(m))])
-   colnames(htmlTable) <- 1:ncol(htmlTable)
-   HTML(htmlTable)
-   HTMLStop()
-   return(a)
-}
-
-`plot.association_analysis` <- 
-function(x, range_fv=NULL, p_quantile=0.95, ylim=NA, ylim2=c(15,0), xlab="", text="", ...){
-   postscript(paste2(attr(x,'prefix'),'.ps'))
-   par('mfrow'=c(3,2),mai=c('0.5','0.5','0.5','1'))
-   for(i in 1:length(attr(x,'fv'))){
-      if(length(range_fv)>0)
-         a <- cbind(scores=attr(x,'sc_med')[[i]][range_fv], pvalues=apply(attr(x,'x2')[[i]][,range_fv],2,quantile,probs=p_quantile))
-      else
-         a <- cbind(scores=attr(x,'sc_med')[[i]], pvalues=apply(attr(x,'x2')[[i]],2,quantile,probs=p_quantile))
-      if(length(ylim) != 2)
-         ylim <- as.integer(range(a[,'scores']))
-      title <- paste2(text, ' (#',i,')')
-      plot_patternAndPvalues(a, title=title, ylim2=ylim2, ylim=ylim, xlab=xlab)
-   }
-   graphics.off()
-}
 
 
 `plot_patternAndPvalues` <-
@@ -1416,7 +1114,7 @@ function(x, B_max=1000,rseed=6013){
 }
 
 
-`to_binary` <- 
+`toBinary` <- 
 function(x){
    x_bin <- x
    for(i in 1:ncol(x))
@@ -1425,7 +1123,25 @@ function(x){
 }
 
 
-`association_analysis` <- 
+
+`plot.test.feats` <- 
+function(x, range_fv=NULL, p_quantile=0.95, ylim=NA, ylim2=c(15,0), xlab="", text="", ...){
+   postscript(paste2(attr(x,'prefix'),'.ps'))
+   par('mfrow'=c(3,2),mai=c('0.5','0.5','0.5','1'))
+   for(i in 1:length(attr(x,'fv'))){
+      if(length(range_fv)>0)
+         a <- cbind(scores=attr(x,'sc_med')[[i]][range_fv], pvalues=apply(attr(x,'x2')[[i]][,range_fv],2,quantile,probs=p_quantile))
+      else
+         a <- cbind(scores=attr(x,'sc_med')[[i]], pvalues=apply(attr(x,'x2')[[i]],2,quantile,probs=p_quantile))
+      if(length(ylim) != 2)
+         ylim <- as.integer(range(a[,'scores']))
+      title <- paste2(text, ' (#',i,')')
+      plot_patternAndPvalues(a, title=title, ylim2=ylim2, ylim=ylim, xlab=xlab)
+   }
+   graphics.off()
+}
+
+`test.feats` <- 
 function(x, q=NA, B=4){
    if(class(x) == "cresult"){
       # RETRIEVE APPROPRIATE CLASS/SUBTYPE LABELS 
@@ -1433,7 +1149,7 @@ function(x, q=NA, B=4){
          l <- as.character(attr(attr(x,'cdata'),'data_o')[row.names(attr(x,'cdata')),q])
       else{
          if(is.na(q))
-            q <- get_best_models(x)[1]
+            q <- getBestModel(x,1)
          l <- as.character(attr(x[[q]],'model')$labelling)
       }
       m <- data.frame(attr(attr(x,'cdata'),'data_o')[,colnames(attr(x,'cdata'))],class=l)
@@ -1446,7 +1162,7 @@ function(x, q=NA, B=4){
    }
    # INIT DATA
    prefix <- paste2(p,'_discriminative_features_',gsub(",","_",q))
-   mBin <- data.frame(to_binary(m[,-ncol(m)]),class=l)
+   mBin <- data.frame(toBinary(m[,-ncol(m)]),class=l)
    x2 <- fv <- sc_med <- list()
    # 
    for(i in sort(unique(l))){
@@ -1455,9 +1171,9 @@ function(x, q=NA, B=4){
       fv[[i]] <- names(which(apply(x2[[i]], 2, quantile, probs=0.5)<0.05))
       sc_med[[i]] <- apply(m[(l==i), -which(colnames(m) %in% c('class',q))],2,median)
    }
-   obj_out <- structure(fv, x2=x2, fv=fv, sc_med=sc_med, prefix=prefix, class="association_analysis")
+   obj_out <- structure(fv, x2=x2, fv=fv, sc_med=sc_med, prefix=prefix, class="test.feats")
    if((class(x) == "cresult") && (length(which(q %in% names(x)))>0)){
-      attr(x[[q]],'association_analysis') <- obj_out
+      attr(x[[q]],'test.feats') <- obj_out
       return(x)
    }
    else
@@ -1494,7 +1210,7 @@ function(x, N=10){
 }
 
 
-`analysisVarFeat` <- 
+`varFeatAnalysis` <- 
 function(m, a=NULL, maxFeat=NA, postscript=TRUE,clusterModel='VVI', clusterG=6,
    clusterRseed=6013:6063){
    nFeatMax <- min(ncol(m)-1,maxFeat,na.rm=TRUE)
@@ -1502,22 +1218,22 @@ function(m, a=NULL, maxFeat=NA, postscript=TRUE,clusterModel='VVI', clusterG=6,
    iterSeq <- as.integer(2^(2+(1:iterMax)/2))
    x <- NULL
    if(is.null(a))
-      a <- association_analysis(m)
+      a <- test.feats(m)
    for(i in iterSeq){
       cat('\n',i,' features...')
       aTmp <- bestNFeatures(a,N=i)
       # PREPARE SETTINGS
-      settings <- generate_cdata_settings(m)
-      settings[,'in_canalysis'] <- FALSE 
-      settings[as.character(attr(aTmp,'bestNFeatures')),'in_canalysis'] <- TRUE
+      settings <- genCdataSettings(m)
+      settings[,'inCAnalysis'] <- FALSE 
+      settings[as.character(attr(aTmp,'bestNFeatures')),'inCAnalysis'] <- TRUE
       # PREPARE CDATA
-      cdata <- set_cdata(m,settings=settings, prefix=paste2('With_',i,'_Features'))
+      cdata <- setCdata(m,settings=settings, prefix=paste2('With_',i,'_Features'))
       # PREPARE CRESULT
-      x[[as.character(i)]] <- set_cresult(cdata=cdata,
-         fun_stats=list(), fun_plot=list(), fun_pattern=NULL, fun_bic_pattern=NULL,
-         nbr_top_models=5, cfun=fun_mbc_em,
-         cfun_settings=list(modelName=clusterModel, G=clusterG, rseed=clusterRseed))
-      x[[as.character(i)]] <- fun_cmodel(x[[as.character(i)]])
+      x[[as.character(i)]] <- setCresult(cdata=cdata,
+         fun_stats=list(), fun_plot=list(), fun_pattern=NULL, nTopModels=5,
+         cfun=clusterModelBasedEM, cfun_settings=list(modelName=clusterModel,
+         G=clusterG, rseed=clusterRseed))
+      x[[as.character(i)]] <- doModeling(x[[as.character(i)]])
    }
    # V, SCALE UP
    combi <- t(combn(names(x),2))
@@ -1525,12 +1241,12 @@ function(m, a=NULL, maxFeat=NA, postscript=TRUE,clusterModel='VVI', clusterG=6,
    v<- matrix(NA,length(x),length(x),dimnames=list(names(x),names(x)))
    for(i in 1:nrow(combi)){
        idx <- paste(combi[i,],collapse=",")
-       compList[[idx]] <- compare_transform(x[[combi[i,1]]],x[[combi[i,2]]])
+       compList[[idx]] <- compareCresult(x[[combi[i,1]]],x[[combi[i,2]]])
        v[combi[i,2],combi[i,1]] <- v[combi[i,1],combi[i,2]] <- compList[[idx]]$summary[1]
     }
     print(v)
     # GRAPHIC OUTPUT
-   fileName <- paste2(today(),'analysisVarFeat')
+   fileName <- paste2(today(),'varFeatAnalysis')
    if(postscript){
       postscript(file=paste2(fileName,'.ps'))
       image(1L:nrow(v), 1L:ncol(v), v, xlim = 0.5 + c(0, nrow(v)),ylim = 0.5 +
@@ -1549,4 +1265,137 @@ function(m, a=NULL, maxFeat=NA, postscript=TRUE,clusterModel='VVI', clusterG=6,
    save(list = "x", file = paste2(fileName,'.RData'))
    return(x)
 }
+
+`getCvar` <- 
+function(x){
+   varSel <- which(x[,"inCAnalysis"] == "TRUE" | x[,"inCAnalysis"] == " TRUE")
+   return(row.names(x)[varSel])
+}
+
+`print.bicanalysis` <-
+function(x, ...){
+   return(x[1:nrow(x),])
+}
+
+`print.cdata` <-
+function(x, ...){
+   return(x[1:nrow(x),getCvar(attr(x,"settings"))])
+}
+
+`print.cmodel` <-
+function(x, ...){
+   xModel <- attr(x, "model")
+   m <- cbind(xModel[["z"]], class=map(xModel[["z"]]))
+   colnames(m)[1:(ncol(m)-1)] <- 1:(ncol(m)-1)
+   return(m)
+}
+
+`print.cresult` <- 
+function(x, m1=NULL, m2=NULL, type='term', label='tab:jointdistrib', ...) {
+   doCaption <- function(o, str){
+      str <- gsub('x','and',gsub('[()]', ' ', gsub('_',',',str)))
+      str <- paste2("The level of association of models", str,"is $V=", sprintf('%.1f', 100*o["V",1]))
+      str <- paste2(str, "\\%$ and the $\\chi^2$ test, on which $V$ is based, has its $p=")
+      str <- paste2(str, sprintf('%.4f', o['CHI2',1]), '$ ($\\chi^2=',sprintf('%.1f',o['CHI2',2]),'$).')
+      return(str)
+   }
+   if(is.null(m1) & is.null(m2)){
+      d <- compareModel(x)
+      for(i in names(d))
+         print(xtable(d[[i]][1:(nrow(d[[i]])-2),],caption=doCaption(d[[i]],i),digits=0,label=paste2(label,i), type=type))
+   }
+   else if((m1 %in% names(x)) & (m2 %in% names(x))){
+      m12 <- compareModel(x[[m1]], x[[m2]])
+      str <- paste2('(',m1,')x(',m2,')')
+      if(type == 'latex' | type == 'html')
+         print(xtable(m12[1:(nrow(m12)-2),],caption=doCaption(m12,str),digits=0,label=label), type=type)
+      else
+         return(m12)
+   }
+}
+
+`summary.bicanalysis` <- 
+function(object, fun='mean', bic='relativeBic', type='latex', caption=NULL, label='tab:bic', fmt='%.2f', ...){
+   x.summary <- getBicStats(attr(object,'data'), fun=fun, vAgg=bic, fmt=fmt)
+   if(tolower(type)=='latex' | tolower(type) == 'html'){
+      if(is.null(caption)) 
+         caption <- paste2(fun,' of ', gsub('_',' ',bic))
+      print(xtable(x.summary, caption=caption, label=label,type=type))
+   }
+   else
+      print(as.matrix(x.summary))
+   return(x.summary)
+}
+
+
+`summary.cdata` <- 
+function(object, shift='', ...){
+   cat(shift, '\'',attr(object,'prefix'),'\' dataset for subtype discovery analysis\n')
+   cat(shift, attr(object,'rinfo')[['R.version']]$version.string,',',attr(object,'rinfo')[['R.version']]$platform,'\n')
+   cat(shift, 'SubtypeDiscovery ', attr(object,'rinfo')$otherPkgs[['SubtypeDiscovery']][['Version']],'\n')
+   cat(shift, '\t number of variables in the cluster analysis/originally: ', ncol(print(object)),'/', ncol(attr(object,'data_o')),'\n')
+   cat(shift, '\t number of complete and incomplete cases: ', nrow(print(object)), '/', nrow(attr(object,'data_o'))-nrow(print(object)), '\n')
+   cat(shift, '\t xlim: ',attr(object,'xlim'), '\n')
+   cat(shift, '\t ylim: ',attr(object,'ylim'), '\n')
+   cat(shift, '\t par() \'mai\' parameter: ',attr(object,'mai'),'(to define the base margin of the plotting regions)\n')
+   cat(shift, '\t base, figure and table directories:\n\t\t', attr(object,'baseDir'),'\n\t\t', attr(object,'figDir'),'\n\t\t', attr(object,'tabDir'), '\n')
+}
+
+`summary.cmodel` <- 
+function(object, type='term', label='tab:stats', caption=NULL, ...){
+   objStats <- attr(object,"stats")
+   m <- attr(object,'cfun_settings')
+   mCaption <- ''
+   summaryStr <- function(str){
+      cList <- strsplit(strsplit(gsub('and[ ]*','',str),' ')[[1]],'')
+      str <- ''
+      for(i in 1:length(cList))
+         str <- paste2(str,cList[[i]][1],'.')
+      return(toupper(str))
+   }
+   if(length(objStats) >=1){
+      mCaption <- paste2('Statistics of model ', m[[1]], ',', m[[2]], ',', m[[3]],' (')
+      x <- matrix(0,0,nrow(objStats[[1]]))
+      i <- 1
+      while(i <= length(objStats)){
+         x <- rbind(x, t(objStats[[i]]))
+         mCaption <- paste2(mCaption, names(objStats)[[i]],', ')
+         i <- i+1
+      }
+      mCaption <- gsub(', )',')',paste2(mCaption,').'))
+      row.names(x) <- sapply(row.names(x),summaryStr)
+   }
+   else
+      x <- 'no stats'
+   if(tolower(type)=='latex' | tolower(type) == 'html')
+      print(xtable(x, caption=mCaption, label=label, type=type))
+   else 
+      print(x)
+}
+
+`summary.cresult` <- 
+function(object, type='term', ...){
+   cat('\'',attr(object,'prefix'),'\' subtype discovery analysis summary\n')
+   cat('------- data ----------\n')
+   summary(attr(object,'cdata'), shift=' ')
+   cat('----- settings --------\n')
+   cat(' ',attr(object,'rinfo')[['R.version']]$version.string,',',attr(object,'rinfo')[['R.version']]$platform,'\n')
+   cat(' SubtypeDiscovery ', attr(object,'rinfo')$otherPkgs[['SubtypeDiscovery']][['Version']],')\n')
+   cat(rep(' ',3),'model based cluster analysis\n')
+   p <- as.matrix(attr(object,'cfun_params'))
+   cat(rep(' ',6),'covariance models: ', sort(unique(p[,1])),'\n')
+   cat(rep(' ',6),'number of clusters: ', sort(unique(p[,2])),'\n')
+   cat(rep(' ',6),'random initialization numbers: ',sort(unique(p[,3])),'\n')
+   cat(rep(' ',6),'BIC table of relative difference with respect to most likely model\n')
+   x.summary <- summary(attr(object,'bicanalysis'),type=type,bic='relativeBic')
+   x.summary <- summary(attr(object,'bicanalysis'),type=type,bic='BIC')
+   x.summary <- summary(attr(object,'bicanalysis'),type=type,bic='BIC',fun='rank')
+   vBModels <- getBestModel(object)
+   cat(rep(' ',3),'model ranking, top: \n')
+   for(i in 1:length(vBModels))
+      cat('\t\t', i,' ', vBModels[i],'\n')
+   if(is.null(q))
+      q <- vBModels[1]
+}
+
 

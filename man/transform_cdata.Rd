@@ -1,9 +1,9 @@
-\name{transform_cdata}
-\alias{transform_cdata}
+\name{getCdata}
+\alias{getCdata}
 \title{ Transform data for a cluster analysis}
 \description{ This function applies sequencially the different transformations
 as defined in settings, and this for each variable.  }
-\usage{ transform_cdata(data, settings, tdata = NULL) }
+\usage{ getCdata(data, settings, tdata = NULL) }
 \arguments{
   \item{data}{ A data set of type \code{cdata}, }
   \item{settings}{ A character matrix with row names the name of each variable
@@ -21,9 +21,4 @@ as defined in settings, and this for each variable.  }
   objects.}
 }
 \author{ Fabrice Colas }
-\seealso{ \code{\link{transform_adjust}}, \code{\link{transform_ABSMAX}},
-\code{\link{transform_ALL}}, \code{\link{transform_AVG}},
-\code{\link{transform_L1}}, \code{\link{transform_MAX}},
-\code{\link{transform_MEDIAN}}, \code{\link{transform_MIN}},
-\code{\link{transform_SIGMA}}, \code{\link{transform_adjust}},
-\code{\link{transform_cdata}}}
+

@@ -1,1 +1,0 @@
-Sweave('SubtypeDiscovery-vignette')

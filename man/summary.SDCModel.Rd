@@ -16,5 +16,7 @@ Odd ratios statistics are computed on factors of variable defined in the setting
 settings['Species',] <- c(NA,FALSE, NA, NA, NA, NA)
 x <- SDisc(iris, settings=settings, prefix='iris')
 summary(x[[bestModel(x,1)]], data=SDData(x))}
-\keyword{cluster,htest,methods}
+\keyword{cluster}
+\keyword{htest}
+\keyword{methods}
 \alias{summary.SDCModel}\alias{oddRatiosB}\alias{jointDistrib}

@@ -7,5 +7,7 @@
 }
 \references{Fraley C, Raftery AE: Model-Based Clustering, Discriminant Analysis and Density Estimation. Journal of the American Statistical Association, vol. 97, pp. 611-631, 2002. [\url{http://www.stat.washington.edu/raftery/Research/PDF/fraley2002.pdf}]Fraley C, Raftery AE, {MCLUST} Version 3 for {R}: {N}ormal Mixture Modeling and Model-Based Clustering. Technical Report 504, Department of Statistics, University of Washington, September 2006. [\url{http://www.stat.washington.edu/fraley/mclust/tr504.pdf}]}
 \author{Fabrice Colas}
-\seealso{\code{\link{print.SDCModel}}, \code{\link{print.SDData}}, \code{\link{SDisc}}, \code{\link{SDStability}}, }\keyword{cluster,models,multivariate}
+\seealso{\code{\link{print.SDCModel}}, \code{\link{print.SDData}}, \code{\link{SDisc}}, \code{\link{SDStability}}, }\keyword{cluster}
+\keyword{models}
+\keyword{multivariate}
 \alias{modelBasedEM}

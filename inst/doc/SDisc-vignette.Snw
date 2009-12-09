@@ -1,0 +1,404 @@
+%\VignetteIndexEntry{SDisc-vignette} 
+\documentclass[a4paper,12pt]{article}
+\usepackage[latin1]{inputenc}
+\usepackage[left=2.5cm,top=2cm,right=2.5cm,bottom=2cm]{geometry}
+\usepackage[english]{babel}
+\usepackage{url}
+\usepackage[small,bf]{caption}
+\usepackage{graphicx} 
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{color}
+\usepackage[table]{xcolor}
+\usepackage{longtable}
+\usepackage[ colorlinks=true, citecolor=blueDoc, filecolor=blueDoc,
+linkcolor=blueDoc, urlcolor=blueDoc]{hyperref}
+\usepackage{lscape}
+
+\definecolor{blueDoc}{rgb}{0.2156863,0.4941176,0.7215686}
+\definecolor{blueLines}{rgb}{0.8705882,0.9215686,0.9686275}
+\definecolor{blue4}{rgb}{0.1294118,0.4000000,0.6745098}
+\definecolor{blue3}{rgb}{0.2627451,0.5764706,0.7647059}
+\definecolor{blue2}{rgb}{0.5725490,0.7725490,0.8705882}
+\definecolor{blue1}{rgb}{0.8196078,0.8980392,0.9764706}
+%\definecolor{white}{rgb}{0.9686275,0.9686275,0.9686275}
+\definecolor{grey}{rgb}{0.8,0.8,0.8}
+\definecolor{red1}{rgb}{0.9921569,0.8588235,0.7803922}
+\definecolor{red2}{rgb}{0.9568627,0.6470588,0.5098039}
+\definecolor{red3}{rgb}{0.8392157,0.3764706,0.3019608}
+\definecolor{red4}{rgb}{0.69803922,0.09411765,0.16862745}
+
+\fancyhead{}
+\fancyfoot{}
+\renewcommand{\sectionmark}[1]{\markright{#1}{}}
+\fancyhead[LO]{SDisc vignette}
+\fancyhead[RO]{\nouppercase{\textsc\leftmark}}
+\fancyfoot[LO]{LIACS, Leiden University, NL}
+\fancyfoot[CO]{ }
+\fancyfoot[RO]{\thepage/\pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\newcommand{\captionfonts}{\small\it}
+
+
+\title{\textsf{R SDisc}: Integrated methodology for the identification of homogeneous profiles in data
+distribution}
+\author{F Colas}
+
+\pagestyle{fancy}
+\begin{document}
+\maketitle
+
+ 
+\addcontentsline{toc}{section}{Abstract}
+
+The time and the expertise to perform robust subtyping inferences in data are often regarded as limiting factors
+for the range of analysis hypothesis considered. Indeed, not only competence in cluster analysis is required but
+also in exploratory data analysis, regression, statistical testing, computational statistics, classifier training
+and testing, data visualization and scientific programming. Identifying data subtypes is therefore greatly
+interdisciplinary. Hence, \hyperlink{a:sd}{\textsf{SDisc}} addresses an essential demand, originally
+emanating from clinical research, for an integrated scenario performing the different steps of a subtyping
+analysis. 
+
+With \hyperlink{a:sd}{\textsf{SDisc}}, analyzes also become more straightforward and therefore more
+accessible to many investigators. The well-defined data structures of the package greatly enhances the analysis
+reproducibility, whereas with the public release of the package, research teams from elsewhere can benefit of a
+tested scenario to perform their own analyzes.  Additionally, more data analysis hypotheses than before are
+considered. For instance, adjusting the data preparation at an advanced stage is now possible and only requires new
+input settings for the scenario. The next calculation will update the graphics, the measurements and the statistics
+which, in turn, may enable to compare different data treatments at a \emph{meta}-level. 
+
+The possible domains of application are in clinical research on complex pathologies like Osteoarthritis,
+Parkinson's disease and aggressive brain tumor diagnosis. For these pathologies, more homogeneous patient subtypes
+is expected to help to break down the existing clinical heterogeneity and thus further enhance the understanding of
+their underlying mechanisms. Hence, the discovered subtypes may help to advance the development of new treatment
+strategies.
+
+Moreover, \hyperlink{a:sd}{\textsf{SDisc}} confronts particularly with clinical research requirements in terms of
+data analysis. It considers the validity aspect of the inference steps carried out in the course of a subtyping
+analysis, the accessibility facet to enable non-expert computer scientist to perform and/or reproduce analyzes
+independently and straightforwardly, as well as the availability aspect by the distribution of the generic solution
+as a documented open source \textsf{R} package.
+
+In the following, \textbf{outline}...
+
+\pagebreak
+\tableofcontents
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% APPLICATION AREAS 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\hypertarget{a:applicationareas}{\section{Application areas}}
+
+In the following, we report the rationale of subtype discovery data analyzes by reviewing a number of domains
+facing this problem, in medical research (\hyperlink{a:molepi}{Mol LUMC}, \hyperlink{a:neurology}{Neu LUMC},
+\hyperlink{a:psychiatry}{Psy LUMC},  \hyperlink{a:soco}{SOCO}), in chemoinformatics
+(\hyperlink{a:pharmait}{Pharma-IT}) and in recycling (\hyperlink{a:cifasis}{CIFASIS}). For each application domain
+we motivate the research target. 
+
+\paragraph{Osteoarthritis (OA)} Searching for subtypes in the distribution of OA may allow to study the spread of
+the disease across different sites and to show whether it is stochastic or follows a particular pattern. Such
+subtypes could contribute to elucidate the clinical heterogeneity of OA \cite{meulenbelt97genetic} and therefore
+enhance the identification of the disease pathways (genetics, pathophysiological mechanisms).
+
+\paragraph{Parkinson's disease (PD)}  Among PD patients, there is marked heterogeneity in the clinical phenotype
+which differs in the presence, the severity, and the progression rate of the various features while differences are
+also observed in other clinical variables like age at onset \cite{foltynie2002hip}. This clinical heterogeneity may
+indicate the existence of subtypes, whose identification may advance our understanding of the underlying
+pathological mechanisms of PD and thus, advance the development of more focused treatment strategies
+\cite{vanrooden09discovery}. 
+
+\paragraph{Major depressive disorders (MDD) and anxiety disorders (ANX)} According to the tripartite model,
+depression and anxiety symptoms are classified into three dimensions reflecting: a common factor of negative
+affect,  and disorder/specific dimensions lack of positive affect (MDD) and somatic arousal (ANX)
+\cite{clark91tripartite}. As there is substantial heterogeneity in these diagnostic categories, identifying more
+homogeneous subtypes of MDD/ANX based on symptom profiles could help to find prognostic factors,  risk factors, and
+treatment strategies.
+
+\paragraph{Glioblastoma and metastasis} We attempt to find discriminative subtypes of aggressive brain tumors using
+long echo term spectroscopy data. In particular, we search for frequencies of the spectrum making the signals of
+these pathologies similar and, as a result, difficult to discriminate. Further, as the underlying heterogeneity of
+the glioblastoma pathology remains uncharacterized at large, subtypes of this brain tumor may enhance our
+understanding of the different forms of glioblastoma. Last, as effective patient care orientation depends on
+accurate medical diagnosis, new subtypes of these pathologies may provide a basis to improve their correct
+discrimination.  Our results are reported in \cite{colas09discriminative}.
+
+\paragraph{Additional analyzes} The purpose of the \hyperlink{a:pharmait}{Pharma-IT} analysis is to identify
+subtypes in databases of molecules. As molecules are classified into a number of complex bioactivity classes, an
+automatic subtyping of the molecules, grouping them based on their similarity, may help to further understand those
+classes. 
+
+Second, with the \hyperlink{a:cifasis}{CIFASIS}, an automatic classifier is searched for capable to discriminate
+between different classes of plastics.  In this analysis, the search for subtypes  in the distribution of
+spectroscopy measurements is susceptible to report the most discriminative spectra frequencies, first, and second,
+to identify whether spectra subtypes exhibit a structure in correlation with the different classes of plastics. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% USE CASE: STANDARD SUBTYPING ANALYSIS 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\hypertarget{a:usecase}{\section{Use case of an SDisc analysis}}
+
+ The scenario illustrated by Figure \ref{fig:rsd}, starts with a data preparation step where close collaboration
+ with the domain experts is required to obtain a description of the data. These are written into a settings file
+ that defines how to transform each variable, which variable to include in the cluster modeling, how to summarize
+ variables graphically and statistically. To facilitate the task of writing that file, the package implements a
+ function that generates default settings. 
+
+Next, a preliminary subtype discovery analysis is performed to test the flow of statistical inferences, and to
+commence the discussion with the research team.  A graphic report of the data container is produced, which enables
+exploratory data analysis (EDA). It creates box plots, histograms, and several other variable-specific statistics.
+To characterize the mixture models, the scenario assembles a number of statistics and of graphics. This output
+enables to complete with the research team a first instructional walk over the whole inference process. 
+
+\begin{figure}[hp!] \begin{center} \includegraphics[width=14cm]{figures/scenario.pdf}
+\caption{\label{fig:rsd}The data mining scenario consists in a sequence of five steps
+\cite{colas09rsubtypediscovery,colas08isola}: the data preparation, the cluster modeling based on
+\cite{FraleyRaftery2002,MclustSoftwareManual2006}, the model selection, the characterization and comparison of the
+subtypes and the relevance evaluation.  On top of each step, we illustrate some of the tables and graphics it can
+produces. For more details, see the vignette documentation \cite{colas09vignette}.} \end{center} \end{figure}
+
+Subsequently, the subtype discovery can be adjusted given considerations over the number of samples, the number of
+dimensions, the calculation time, the evaluation of the significance of the subtypes by some statistical test (e.g.
+a $\chi^2$ test of association or of goodness of fit, a risk ratio) or the posterior characterization of the
+subtypes. This adjustment may involve additional validation data, alternative data processing, filtering of
+outliers, re-organization of the graphics. Thus, it may require the preparation of a new settings file and a new
+data container. The moment these considerations are fixed, a new analysis is performed. 
+
+In the succeeding, we present a r\'{e}sum\'{e} of the subtyping inference carried out on a cohort study of patients
+with PD. The results of this analysis are described in \cite{vanrooden09discovery}.
+
+\begin{quote}The clinical presentation of PD was described by 13 variables from which the variability explained by
+the disease duration was removed. Standard scores were taken and a model based cluster analysis was repeated from
+50 different starting points, for 3, 4 and 5 clusters and for 5 differently parameterized Gaussian models. It
+resulted in 750 estimated models. Cluster average PD patterns were visualized using parallel coordinates and heat
+maps.  The distributions of patients in the different cluster solutions were cross-compared in terms of association
+tables and of a $\chi^2$-based coefficient of nominal association (Cramer's V). Finally, the consistency of the
+subtypes was evaluated for the reproducibility between the assessments of year one and two. \end{quote}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% EXTENDING SDISC 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\hypertarget{a:extendtest}{\section{Extending SDisc}}
+
+ When applying the scenario to a growing number of \hyperlink{a:applicationareas}{application areas}, we develop
+ new methods and extend others to carry out subtype discovery analyzes on new data types and to report
+ field-specific subtype validation methods. Consequently, in what follows, we describe our development methodology
+ to extend the scenario's functionalities. 
+
+First, we implement a prototype of the new functionality using the real data of the new application. We update the
+prototype functionalities gradually, from a field-specific procedure to a more general one. Then, we re-design the
+procedure as a function, which enables its re-use in other contexts.  Ultimately, we implement that procedure and
+the data structure in an object-oriented mode of programming which in turn, will improve its reliability and
+guarantee its generality. Later, as the new function stabilizes, or when another application area utilizes it, we
+include it into the development source code of the package. Periodically, we submit the development source code to
+the \hyperlink{a:softwareaccess}{\texttt{subversion} system}. Before each release of a new version that freezes the
+functionalities, we update the documentation.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SDISC AS AN R PACKAGE 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\hypertarget{a:}{\section{SDisc as an R package}}
+
+The \textsf{R} platform for statistical computing \cite{r} as well as the BioConductor project for the
+comprehension and the analysis of genomic data \cite{gentleman2004bioconductor} are two projects that gained
+widespread exposure in the last years.  This exposure is partly the result of the abundance of data sources in need
+of analysis and of a growing demand for analysis reproducibility. 
+
+For both projects, Figure \ref{fig:cran} portrays the growing number of \emph{new} submissions over the years. It
+shows the wide acceptance, and thus the relevance, of the \textsf{R} platform for statistical computing as a means
+to publish scientific programs.  In parallel, the BioConductor initiative successfully attracted the creation of
+softwares in bioinformatics.  Yet, for both projects the number of new submissions is reducing. A first hypothesis
+is that the field of bioinformatics and statistical computing is reaching maturity. A second one is that the total
+software production is reaching some limit. Or, else, new packages are no longer systematically added to those two
+repositories, of which \hyperlink{a:sd}{\textsf{SDisc}} would represent an illustrative
+\hyperlink{a:softwareaccess}{example} as it was initially submitted to the NBIC gforge. 
+
+\begin{figure}[hp]
+\begin{center}
+\includegraphics[width=\textwidth]{figures/cran.pdf}
+\caption{\label{fig:cran} The number of \emph{new} submissions attained 300 packages per year in 2007 and 2008 for
+the \href{http://cran.r-project.org}{CRAN}, and 68 for \href{http://www.bioconductor.org}{BioConductor}. Yet, in
+2008 and 2009, the number of new submissions is slowing down for both projects.}
+\end{center}
+\end{figure}
+
+Thus, \hyperlink{a:sd}{\textsf{SDisc}} fits in the trend to make available and open source the software
+used  to perform a data analysis. Further, as it was applied to very different
+\hyperlink{a:applicationareas}{application areas}, the subtyping problem appears recurrent and thus, very general.
+Last, the variety of data types analyzed also demonstrates the scenario's flexibility. 
+
+\section{Hands on R SDisc}
+\SweaveOpts{width=6,height=4}
+<<echo=FALSE>>=
+options(continue="   ")
+options(width=95)
+@
+\subsection{Installing}
+
+<<SDiscInstall, echo=TRUE, eval=FALSE>>=
+install.packages('SDisc', dep=TRUE)
+@
+
+<<SDiscLoadLibrary, echo=TRUE, eval=TRUE>>=
+library(SDisc)
+@
+
+\begin{verbatim}
+R CMD INSTALL SDisc_1.18.tar.gz
+\end{verbatim}
+
+\subsection{SDData: the data container of SDisc}
+
+rationale: contains all data and transformation within a single container readable by r program. enables
+repeatability and reproducibility of data transformation. accessibility of the variable estimates. also stores
+important computing environment informations. object-oriented enabled and as such, capacity to make EDA plots, data
+summary, data prints... 
+
+\paragraph{Example from the documentation:} iris data, mean and sd
+<<SDDataBasic, echo=TRUE>>=
+settings <- SDDataSettings(iris)
+settings['Species',] <- c(NA,FALSE, NA, NA, NA,NA)
+x <- SDData(iris, settings=settings, prefix='SDDataBasic')
+@
+
+<<SDDataBasicLatex, echo=TRUE, results=tex>>=
+print(x, rseed=6013, latex=TRUE)
+plot(x, latex=TRUE)
+summary(x, latex=TRUE)
+@
+
+\clearpage
+
+\paragraph{Example:} edit the settings of the file
+
+<<SDDataSettings, echo=TRUE, results=tex>>=
+SDDataSettings(iris, latex=TRUE)
+SDDataSettings(iris, asCSV=TRUE)
+mySettingsMatrix <-SDDataSettings(iris)
+@
+
+\paragraph{Example:} two numbers to test the mean and median thing, two gaussian variables to test the mean and sd
+of scale
+
+<<SDDataCenter, echo=TRUE>>=
+set.seed(6014)
+mat <- matrix(c(rnorm(50), rnorm(50,mean=3,sd=5), rnorm(50,mean=-2,sd=4)), 50, 3)
+settings <- SDDataSettings(mat)
+x <- SDData(mat, settings=settings, prefix='SDDataCenter')
+@
+
+<<SDDataCenterLatex, echo=TRUE, results=tex>>=
+print(x, rseed=6013, latex=TRUE)
+plot(x, latex=TRUE)
+summary(x, latex=TRUE)
+@
+\clearpage
+
+\paragraph{Example:} a random noise uniform variable and a dependent variable to show time association
+<<SDDataLinearModel>>=
+set.seed(6015)
+epsilon <- runif(50)
+time <- sample(1:5, 50, replace=TRUE)
+vDependent <- 2*time+epsilon 
+mat <- matrix(c(rnorm(50), time, epsilon, vDependent, vDependent), 50, 5)
+colnames(mat) <- c("vNormal","time","epsilon","vDependentOrig", 'vDependent' )
+settings <- SDDataSettings(mat)
+settings[,'tFun'] <- c('mean sd','', '','', 'lm(vDependent~time)')
+xLM <- SDData(mat, settings=settings, prefix='SDDataLinearModel')
+@
+
+<<SDDataLinearModelLatex, echo=TRUE, results=tex>>=
+print(xLM, rseed=6013, latex=TRUE)
+plot(xLM, latex=TRUE)
+summary(xLM, q='lm', latex=TRUE, sanitize=FALSE)
+summary(xLM, q='mean|sd', latex=TRUE)
+summary(xLM, latex=TRUE)
+@
+
+\paragraph{Example:} predict new data given previous estimates 
+
+<<SDDataPredictLatex, echo=TRUE, results=tex>>=
+set.seed(6016)
+epsilon <- runif(30)
+time <- sample(1:5, 30, replace=TRUE)
+vDependent <- 2*time+epsilon 
+mat <- matrix(c(rnorm(30), time, epsilon, vDependent, vDependent), 30, 5)
+colnames(mat) <- c("vNormal","time","epsilon","vDependentOrig","vDependent")
+xLMPredicted <- predict(xLM, newdata=mat, prefix='LMPredicted')
+summary(xLMPredicted, q='lm', latex=TRUE, sanitize=FALSE)
+summary(xLMPredicted, q='mean|sd', latex=TRUE)
+@
+
+
+\paragraph{Example:} Sample SDisc analysis
+
+\url{http://www.maxmind.com/app/state_latlon}
+<<StateFormatDataset, echo=FALSE>>=
+state.loc <- read.csv("state.latlon.csv", row.names=1)
+df <- data.frame(state.x77[,hclust(dist(t(state.x77)))$order], name=row.names(state.x77), latitude=NA,
+   longitude=NA)
+row.names(df) <- state.abb
+naRows <- row.names(state.loc)[(!row.names(state.loc) %in% row.names(df))]
+df <- rbind(df,matrix(NA,length(naRows),ncol(df),dimnames=list(naRows, colnames(df))))
+df[,c('latitude','longitude')] <- state.loc[row.names(df),c('latitude','longitude')]
+write.csv(df, file="state.csv")
+#pdf('histLatitude.pdf'); hist(df[!is.na(df[,1]),'latitude'], border=0, col='#A6CEE3'); graphics.off()
+#pdf('histLongitude.pdf'); hist(df[!is.na(df[,1]),'longitude'], border=0, col='#B2DF8A'); graphics.off()
+@
+
+<<StateSDDataSettings>>=
+df <- read.csv('state.csv', row.names=1)
+settings <- SDDataSettings(df, asCSV='stateSettings.csv')
+settings <- read.csv2('stateSettingsEdited.csv', row.names=1)
+@
+
+<<StateSDDataSettings>>=
+x <- SDisc(df, settings=settings, prefix='state')
+@
+
+<<SDiscStateLatex,results=tex>>=
+plot(SDData(x), latex=TRUE)
+summary(SDData(x), latex=TRUE)
+plot(x, latex=TRUE)
+@
+\clearpage
+\begin{figure}[!h]
+\includegraphics[width=\linewidth]{figures/mapLatlong.pdf}
+\end{figure}
+<<SDiscStateLatex,results=tex>>=
+summary(x, q=1, latex=TRUE)
+@
+
+\clearpage
+
+\paragraph{Example:} orchard sprays
+<<SDDataOrchardsprays>>=
+settings <- SDDataSettings(OrchardSprays)
+settings['treatment',] <- NA
+x <- SDisc(OrchardSprays, settings=settings, prefix='OrchardSprays')
+@
+
+<<SDDataOrchardspraysLatex,results=tex>>=
+plot(x, latex=TRUE)
+summary(x, latex=TRUE)
+summary(x, type='chi2test', target='treatment', latex=TRUE)
+@
+
+\listoftables
+\addcontentsline{toc}{section}{List of Tables}
+\listoffigures
+\addcontentsline{toc}{section}{List of Figures}
+
+\section*{List of institutes and main investigators}
+\addcontentsline{toc}{section}{List of institutes and main investigators}
+
+\hypertarget{a:liacs}{\textbf{\href{http://www.liacs.nl}{LIACS}}}, \href{http://www.grano-salis.net}{F Colas}, Dr
+\cite{colas09phdthesis,colas08isola,colas08embc}. \emph{Leiden Institute of Advanced Computer Science, Leiden
+University, NL-2333CA Leiden, the Netherlands}\\
+
+\fancyhead[RO]{\nouppercase{\textsc{References}}}
+\nocite{*}
+\bibliographystyle{apalike}
+\bibliography{SDisc-vignette}
+\addcontentsline{toc}{section}{References}
+\end{document}

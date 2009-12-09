@@ -15,5 +15,6 @@
 settings['Species',] <- c(NA,FALSE, NA, NA, NA, NA)
 x <- SDisc(iris, settings=settings, prefix='iris')
 summary(bicTable(x))}
-\keyword{cluster,methods}
+\keyword{cluster}
+\keyword{methods}
 \alias{summary.bicTable}

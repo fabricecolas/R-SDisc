@@ -7,5 +7,9 @@
 \item{\dots}{ (currently not used) additional parameters to be passed to the subfunctions}
 }
 \author{Fabrice Colas}
-\seealso{\code{\link{print.SDisc}}, \code{\link{SDData}}, \code{\link{SDDataSettings}}, \code{\link{SDisc}}, \code{\link{summary.SDisc}}, }\keyword{classif,cluster,methods,models,multivariate}
+\seealso{\code{\link{print.SDisc}}, \code{\link{SDData}}, \code{\link{SDDataSettings}}, \code{\link{SDisc}}, \code{\link{summary.SDisc}}, }\keyword{classif}
+\keyword{cluster}
+\keyword{methods}
+\keyword{models}
+\keyword{multivariate}
 \alias{predict.SDisc}

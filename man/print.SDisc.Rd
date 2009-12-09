@@ -17,5 +17,6 @@ In the case two different \code{SDisc} analyzes are provided in the same data, t
 settings['Species',] <- c(NA,FALSE, NA, NA, NA, NA)
 x <- SDisc(iris, settings=settings, prefix='iris')
 print(x)}
-\keyword{methods,print}
+\keyword{methods}
+\keyword{print}
 \alias{print.SDisc}\alias{compareModel}

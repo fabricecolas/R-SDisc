@@ -13,8 +13,11 @@
 \seealso{\code{\link{plot.SDisc}}, \code{\link{plot.SDStability}}, \code{\link{predict.SDisc}}, \code{\link{print.SDisc}}, \code{\link{SDData}}, \code{\link{SDDataSettings}}, \code{\link{SDisc}}, \code{\link{summary.SDisc}}, }\examples{settings <- SDDataSettings(iris)
 settings['Species',] <- c(NA,FALSE, NA, NA, NA, NA)
 x <- SDisc(iris, settings=settings, prefix='iris')
-plot(x)
+#plot(x)
 print(x)
 summary(x)}
-\keyword{cluster,math,methods,multivariate}
+\keyword{cluster}
+\keyword{math}
+\keyword{methods}
+\keyword{multivariate}
 \alias{SDisc}

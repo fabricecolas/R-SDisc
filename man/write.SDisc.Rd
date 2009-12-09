@@ -10,5 +10,7 @@
 settings['Species',] <- c(NA,FALSE, NA, NA, NA, NA)
 x <- SDisc(iris, settings=settings, prefix='iris')
 write.SDisc(x)}
-\keyword{cluster,print,utilities}
+\keyword{cluster}
+\keyword{print}
+\keyword{utilities}
 \alias{write.SDisc}

@@ -1,0 +1,12 @@
+;oddGroup;inCAnalysis;tFun;vParGroup;vParY;vHeatmapY
+Area;Geo;TRUE;mean sd;Geo;2;1
+Frost;Geo;TRUE;mean sd;Geo;6;2
+Illiteracy;SocioEconomic;TRUE;mean sd;SocioEconomic, Life;2;6
+Murder;Life;TRUE;mean sd;SocioEconomic, Life;4;7
+Life.Exp;Life;TRUE;mean sd;SocioEconomic, Life;6;8
+HS.Grad;SocioEconomic;TRUE;mean sd;SocioEconomic, Life;8;9
+Population;Geo;TRUE;mean sd;Geo;4;3
+Income;SocioEconomic;TRUE;mean sd;SocioEconomic, Life;10;10
+name;NA;FALSE;NA;NA;NA;NA
+latitude;latitude;FALSE;mean sd;Geo;8;4
+longitude;longitude;FALSE;mean sd;Geo;10;5

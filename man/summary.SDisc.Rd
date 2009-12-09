@@ -1,9 +1,9 @@
 \name{summary.SDisc}
 \title{Summarize an SDisc analysis: data report, BIC table, best models, main features of the subtypes}
 \description{Returns a general summary over an \code{SDisc} analysis. Outlines the data set container characteristics, list the top-ranked models, the BIC table, and outlines oddratios of the top ranked models. }
-\usage{summary.SDisc(object, q = NULL, ...)}
+\usage{summary.SDisc(object, q = 1, ...)}
 \arguments{\item{object}{ an \code{SDisc} analysis result}
-\item{q}{ the model to summarize, e.g. one returned by \code{bestModel}}
+\item{q}{ the model to summarize, e.g. one returned by \code{bestModel}; by default the 1st one}
 \item{\dots}{ (currently unused) additional parameters}
 }
 \author{Fabrice Colas}
@@ -11,5 +11,6 @@
 settings['Species',] <- c(NA,FALSE, NA, NA, NA, NA)
 x <- SDisc(iris, settings=settings, prefix='iris')
 summary(x)}
-\keyword{cluster,methods}
+\keyword{cluster}
+\keyword{methods}
 \alias{summary.SDisc}

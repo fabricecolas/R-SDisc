@@ -8,5 +8,6 @@
 \item{G}{ filter the returned models to those matching with \code{G}}
 }
 \author{Fabrice Colas}
-\seealso{\code{\link{summary.SDCModel}}, }\keyword{arith,character}
+\seealso{\code{\link{summary.SDCModel}}, }\keyword{arith}
+\keyword{character}
 \alias{bestModel}

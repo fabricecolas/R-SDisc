@@ -40,26 +40,57 @@ function(x, q, rseed=6013, nnoise=10, nrep=10){
 function(x, ncolors=9, minmax=c(0.5,1), ...){
    breaks <- seq(minmax[1],minmax[2],(minmax[2]-minmax[1])/ncolors)
    plotInit(plotNbr=1, type="SDStability")
-   image(x, col=brewer.pal(ncolors,"Greys"), breaks=breaks, axes=FALSE, 
-         ylab='Association level V, quantiles', cex.lab=1.7)
+   image(x, col=brewer.pal(ncolors,"Greys"), breaks=breaks, axes=FALSE, ylab='Association level V, quantiles',
+      cex.lab=1.7)
    contour(x, add=TRUE,labcex=1.3)
-   axis(1, at=seq(0,1,0.11), las=2, cex.axis=1.7,
-         labels=sprintf("%.1f%%",100*as.numeric(row.names(x))))
-   axis(2, at=seq(0,1,0.2), cex.axis=1.7,
-         labels=sprintf("%d%%",100*seq(0,1,0.2)))
+   axis(1, at=seq(0,1,0.11), las=2, cex.axis=1.7, labels=sprintf("%.1f%%",100*as.numeric(row.names(x))))
+   axis(2, at=seq(0,1,0.2), cex.axis=1.7, labels=sprintf("%d%%",100*seq(0,1,0.2)))
    title(paste(SDCModelSettings(x),sep="",collapse=" "))
    plotClose()
 }
 
+`predict.SDData` <-
+function(object, newdata, prefix='Newdata', subset=NULL, ...){
+   df <- dataOrig <- newdata <- SDDataDimnames(newdata)
+   if(class(newdata) == 'SDisc' || class(newdata) == 'SDData')
+      df <- dataOrig <- SDDataOrig(newdata)
+   else{
+      settings <- SDDataSettings(object) 
+      for(fun in SDDataInitFun(object))
+         df <- fun(df, settings)
+      df <- df[,row.names(settings)]
+      if(!is.null(subset))
+         df <- df[which(subset %in% row.names(df)),]
+      tRes <- list()
+      newdf <- df
+      for(i in row.names(settings[!is.na(settings[,'tFun']),])){
+         res <- SDTData(i, tFun=settings[i,'tFun'], data=newdf, TData=SDTData(object)[[i]])# SDTDataElmt(tEst[[i]]) 
+         tRes[[i]] <- res[["tdata"]]
+         newdf <- res[["data"]]
+      }
+      res <- structure(data.matrix(newdf), dataOrig=dataOrig, SDTData=tRes, settings=settings, prefix=prefix,
+         class='SDData')
+      res <- SDDataSetup(res, prefix=prefix)
+      return(res)
+   }
+}
+
 `predict.SDisc` <-
 function(object, newdata, ...){
+      #data <- predict(SDData(object), newdata)
    if(class(object) =='SDisc' && class(newdata) =='SDData'){
-      data <- SDData(SDDataOrig(newdata), settings=SDDataSettings(newdata), SDTData=SDTData(object),
+      data <- SDData(SDDataOrig(newdata), settings=SDDataSettings(newdata), TData=SDTData(object),
          prefix=paste2(SDPrefix(newdata), '-Data-PredictedBy-', SDPrefix(object)), subset=SDDataSubset(newdata)) 
+      df <- print(data)
       m <- bestModel(object, 1)
       mName <- strsplit(m, ',')[[1]]
       mOrig <- attr(object[[m]],'model')
-      mPred <- estep(modelName=mOrig$modelName, data=print(data), parameters=mOrig$parameters)
+      if(!is.null(mOrig$parameters$variance$Sigma))
+         mOrig$parameters$variance$Sigma <- SparseM::as.matrix(mOrig$parameters$variance$Sigma)
+      denseSigma <- array(NA, dim=c(ncol(df), ncol(df),as.numeric(mName[[2]])))
+      for(gId in 1:as.numeric(mName[[2]]))
+         denseSigma[,,gId] <- SparseM::as.matrix(mOrig$parameters$variance$sigma[[gId]])
+      mPred <- estep(modelName=mOrig$modelName, data=df, parameters=mOrig$parameters)
       mPred[["label"]] <- map(mPred[["z"]],warn=FALSE)
       res <- SDisc(data, cFunSettings=list(modelName=mName[[1]], G=mName[[2]], rseed=mName[[3]]), nTopModels=1,
                nnodes=1)
@@ -133,6 +164,7 @@ function(x, y=NULL, fmt=c('%d','%.2f')){
    }
 }
 
+
 `modelBasedEM` <-
 function(x, data) {
    p <- as.matrix(SDCModelSettings(x))
@@ -154,15 +186,22 @@ function(x, data) {
    # AND THEN, STARTS EM WITH THE E-STEP
    model <- em(data=data, modelName=mstep_est$modelName, parameters=mstep_est$parameters, warn=FALSE)
    model[["label"]] <- map(model[["z"]],warn=FALSE)
+   model[["z"]] <- NULL 
    # CALCULATE THE BIC SCORE
    model[["BIC"]] <- bic(modelName=modelName, loglik=model$loglik, n=nrow(data) , d=ncol(data), G=G)
-   attr(x,'model') <- model
-   x <- isModeled(x, set=TRUE)
    if(!is.na(model$loglik)){
+      if(!is.null(model$parameters$variance$Sigma))
+         model$parameters$variance$Sigma <- as.matrix.csr(model$parameters$variance$Sigma)
+      sparseSigma <- list()
+      for(gId in 1:G)
+         sparseSigma[[gId]] <- as.matrix.csr(model$parameters$variance$sigma[,,gId])
+      model$parameters$variance$sigma <- sparseSigma
       data <- cbind(data, class=model[["label"]]) 
       attr(x,'pattern') <- list(mean=t(model$parameter$mean), clCount=table(data[,'class']))
       attr(x, 'GColors') <- brewer.pal(length(unique(data[,'class'])),"Set1")
    }
+   attr(x,'model') <- model
+   x <- isModeled(x, set=TRUE)
    return(x)
 }
 
@@ -178,12 +217,45 @@ function(x, n=NULL, modelName=NULL, G=NULL){
    return(as.character(mList))
 }
 
+`SDDataDimnames` <-
+function(data, settings){
+      if(is.null(row.names(data)))
+         row.names(data) <- 1:nrow(data)
+      if(is.null(colnames(data)))
+         colnames(data) <- paste('v', 1:ncol(data), sep='')
+   return(data)
+}
+
 `SDDataCC` <-
 function(data, settings){
    vNames <- SDDataInCAnalysis(settings)
    tFunNames <- unique(unlist(strsplit(as.character(settings[,'tFun']),'[[:punct:] ]+')))
    vNames <- unique(c(vNames, tFunNames[tFunNames %in% colnames(data)]))
    return(data[row.names(na.omit(data[,vNames])),])
+}
+
+`SDDataInitFun` <- 
+function(x){
+   if(class(x) == 'SDisc')
+      return(SDDataInitFun(SDData(x)))
+   else if(class(x) == 'SDData')
+      return(attr(x, 'initFun'))
+   else
+      cat2('You must provide either an \'SDisc\' or \'SDData\' object to \'SDDataInitFun\'')
+}
+
+`SDDataSetup` <- 
+function(x, prefix=NULL, xlim=c(-3,3), ylim=c(0,50), mai=c(0.6,0.3,0.05,0.05)){
+   if(class(x) == 'SDData'){
+      x <- SDPrefix(x, prefix) # do basedir, figdir and tabdir
+      x <- SDDataXlim(x, xlim)
+      x <- SDDataYlim(x, ylim)
+      x <- SDDataMai(x, mai)
+      x <- SDDataRInfo(x) 
+      return(x)
+   }
+   else
+      cat2('You must provide an \'SDData\' to \'SDDataSetup\'.')
 }
 
 `bicTable` <- 
@@ -229,7 +301,7 @@ function(x, fun='mean', vAgg="BIC", vX="G", vY="modelName", fmt='%.2f'){
 }
 
 `plotInit` <- 
-function(x=NULL, figIdx=1, plotNbr=1, type="H", latex=FALSE, legend=''){
+function(x=NULL, figIdx=1, plotNbr=1, type="H", latex=FALSE, legend='', lab=NULL){
    plotI <- plotJ <- 1
    while(plotI * plotJ < plotNbr){
       if(plotI == plotJ)
@@ -250,6 +322,11 @@ function(x=NULL, figIdx=1, plotNbr=1, type="H", latex=FALSE, legend=''){
       maiParam <- maiParam+c(0,0,0,0)
       fLeg <- paste2(fLeg, '\\textbf{histograms} of the variables of the factor \\textbf{', legend, '}.')
    }
+   else if(type=='LM'){
+      maiParam <- maiParam+c(0.5,0.2,0.5,0)
+      fLeg <- paste2(fLeg, legend)
+      width <- '8cm'
+   }
    else if(type=='BB'){
       maiParam <- maiParam+c(0.5,0.2,0.5,0)
       fLeg <- paste2(fLeg, '\\textbf{boxplots} of the variables of the factor \\textbf{', legend, '}.')
@@ -262,9 +339,8 @@ function(x=NULL, figIdx=1, plotNbr=1, type="H", latex=FALSE, legend=''){
    }
    fPDF <- paste2(fDir, '/', fLabel,'.pdf')
    if(latex){
-      lab <- gsub('-',',',type)
-      if(type=='H' || type=='B')
-         lab <- paste2('oddGroup-',sprintf('%03d',figIdx),'-',lab)
+      if(is.null(lab) && (type=='H' || type=='B'))
+         lab <- paste2('oddGroup-',sprintf('%03d',figIdx),'-',gsub('-',',',type))
       cat2('\\begin{figure}\\begin{center}')
       cat2('\\href{',fPDF,'}{\\includegraphics[width=',width,']{',fPDF,'}}')
       cat2('\\caption{\\label{fig:',lab,'}',fLeg,'}')
@@ -279,33 +355,64 @@ function(x=NULL, figIdx=1, plotNbr=1, type="H", latex=FALSE, legend=''){
 }
 
 `plotClose` <-
-function(){ dev.off() }
+function(){ graphics.off() }
 
 `plot.SDData` <- 
-function(x, latex=FALSE, ...) {
+function(x, q=NULL, est=1, zlim=c(-2,2), latex=FALSE, ...) {
    xSettings <- as.matrix(na.omit(SDDataSettings(x)[,c("vParGroup","vParY")]))
    splitGroup <- split(row.names(xSettings),xSettings[,"vParGroup"])
    figIdxBB <- figIdxH <- 1
-   for(i in 1:length(splitGroup)){
-      # PRODUCE BOXPLOT BY SPLIT GROUP
-      figIdxBB <- plotInit(x, figIdxBB, plotNbr=1, type='BB', latex=latex, legend=names(splitGroup)[i])
-      boxplot(as.data.frame(x[,splitGroup[[i]]]),'las'=2,cex=0.7, main=paste2(" Boxplot ",names(splitGroup)[i]))
-      plotClose()
-      figIdxH <- plotInit(x, figIdxH, plotNbr=length(splitGroup[[i]]), type='H', latex=latex,
-         legend=names(splitGroup)[i])
-      for(v in splitGroup[[i]]){
-         lab <- paste2(v,'\n', length(table(x[,v])), " values\n")
-         hist(x[,v], main=NULL, xlab=NULL, ylab="", cex.lab=0.75, las=2,'new'=TRUE, col='grey',border=0)
-         mtext(lab, cex=0.75, side=1)
+   if(is.null(q)){
+      for(i in 1:length(splitGroup)){
+         # PRODUCE BOXPLOT BY SPLIT GROUP
+         figIdxBB <- plotInit(x, figIdxBB, plotNbr=1, type='BB', latex=latex, legend=names(splitGroup)[i])
+         boxplot(as.data.frame(x[,splitGroup[[i]]]),'las'=2,cex=0.7, main=paste2(" Boxplot ",names(splitGroup)[i]))
+         plotClose()
+         figIdxH <- plotInit(x, figIdxH, plotNbr=length(splitGroup[[i]]), type='H', latex=latex,
+            legend=names(splitGroup)[i])
+         for(v in splitGroup[[i]]){
+            lab <- paste2(v,'\n', length(table(x[,v])), " values\n")
+            hist(x[,v], main=NULL, xlab=NULL, ylab="", cex.lab=0.75, las=2,'new'=TRUE, col='grey',border=0)
+            mtext(lab, cex=0.75, side=1)
+         }
+         plotClose()
       }
-      plotClose()
+   }
+   else if(!is.null(q)){
+      res <- list()
+      cNames <- colnames(print(x))
+      m <- matrix(NA, length(cNames), length(q),dimnames=list(cNames, q))
+      for(i in q){
+         for(j in cNames){
+            val <- summary(SDTData(x)[[j]], q=i, digits=9)
+            if(length(val) > 1)
+               val <- strsplit(val[grep(i, colnames(val))], "[ )(;]+")[[1]][est]
+            m[j,i] <- as.numeric(val)
+            if(est==3)
+               m[j,i] <- -log(m[j,i])
+         }
+      }
+      m <- t(m)
+      cex <- 0.7
+      figIdxBB <- plotInit(x, 1, plotNbr=1, type='LM', latex=latex, legend=paste2(q))
+      colGradient <- rev(brewer.pal(9,"RdBu"))
+      breaks <- seq(zlim[1],zlim[2],length.out=10)
+      if(est==3){
+         colGradient <- brewer.pal(3,"Blues")
+         breaks <- c(0, -log(0.05),-log(0.01), 1000)
+      }
+      image(1L:nrow(m), 1L:ncol(m), m, xlim=0.5+c(0,nrow(m)), ylim=0.5+c(0,ncol(m)), axes= FALSE, xlab= "",
+         ylab="", col=colGradient, main=paste(q, collapse=', '), breaks=breaks, add=FALSE, ...) 
+      axis(2, at=(1L:ncol(m)), labels=colnames(m), las=2, line=-0.5, tick=0, cex.axis=cex)
+      axis(1, 1L:nrow(m), labels=row.names(m), las=1, line=-0.5, tick=0, cex.axis=cex)
+      plotClose();
    }
 }
 
 `plot.SDisc` <- 
 function(x, q=NULL, type=c('plotParcoord', 'plotLegend', 'plotImage', 'plotDendroCluster', 'plotDendroVar'),
    latex=FALSE, title=NULL, xlim=c(-3, 3), zlim=c(-2,2), xy=c(-2.2, 0), pattern="mean", cex=0.7,
-   colGrad=rev(brewer.pal(9,"RdBu")), rangeFV=NULL, ...) {
+   colGrad=rev(brewer.pal(9,"RdBu")), rangeFV=NULL, lab=NULL, ...) {
    if(is.numeric(q))
       q <- which(names(x) %in% bestModel(x, n=q))
    else if(is.null(q))
@@ -319,9 +426,10 @@ function(x, q=NULL, type=c('plotParcoord', 'plotLegend', 'plotImage', 'plotDendr
          plotNbr <- plotNbr-1
       if(('plotParcoord' %in% type))
          plotNbr <- plotNbr+length(na.omit(unique(SDDataSettings(x)[,'vParGroup'])))-1
-      figIdx <- plotInit(SDData(x), figIdx=1, plotNbr=plotNbr, type=paste2('MM-',names(x)[q]), latex=latex)
+      figIdx <- plotInit(SDData(x), figIdx=1, plotNbr=plotNbr, type=paste2('MM-',names(x)[q]), lab=lab,
+         latex=latex)
       for(plotFun in type)
-         do.call(plotFun, args=list(x=m, data=SDData(x), title=title, xlim=xlim, zlim=xlim, xy=xy, cex=cex,
+         do.call(plotFun, args=list(x=m, data=SDData(x), title=title, xlim=xlim, zlim=zlim, xy=xy, cex=cex,
             pattern=pattern, colGrad=colGrad, rangeFV=rangeFV))
       plotClose()
    }
@@ -346,9 +454,9 @@ function(x, xlim=c(-2,2), cex=0.7, pattern='mean', colGrad=rev(brewer.pal(9,"RdB
 }
 
 `plotImage` <- 
-function(x, title=NULL, zlim=c(-2,2), pattern='mean', cex=0.7, colGrad=rev(brewer.pal(9,"RdBu")),
+function(x, data, title=NULL, zlim=c(-2,2), pattern='mean', cex=0.7, colGrad=rev(brewer.pal(9,"RdBu")),
 orderPattern=TRUE, ...){
-   muP <- SDCModelPattern(x, fun=pattern)
+   muP <- SDCModelPattern(x, data=data, fun=pattern)
    if(orderPattern){
       cOrder <- hclust(dist(muP))$order
       row.names(muP) <- as.character(1:nrow(muP))
@@ -400,7 +508,7 @@ function(x, data, title=NULL, xlim=c(-3, 3), pattern='mean', cex=0.7, colGrad=re
       plot(x=0 ,new=TRUE ,ann=FALSE ,pch=18,col="white",axes=FALSE ,xlim=xlim , ylim=ylim)
       title(main = paste2("(",paste(as.matrix(SDCModelSettings(x)),collapse=","),") ", v), cex=cex)
       for(pName in pattern){
-         p <- SDCModelPattern(x, fun=pName)[,row.names(T_s)]
+         p <- SDCModelPattern(x, data=data, fun=pName)[,row.names(T_s)]
          lwd <- 3
          lty <- "solid"
          if(pName != "mean") {
@@ -447,7 +555,7 @@ function(data, cfun='modelBasedEM', cFunSettings=list(modelName=c("EII", "VII"),
       if(isModeled(x) && eqData && eqSettings && eqCfun && eqCfunSettings)
          return(x)
       else
-         rm(x)
+         x <- list()
    }
    # ELSE, CONTINUE
    for(i in row.names(mSet))
@@ -481,7 +589,7 @@ function(x, q = NULL){
    for(qName in bestModel(x,n=q)){
       fCSV        <- paste2(SDTabDir(x),'/MM-',qName,".csv") 
       cat2(fCSV)
-      write.csv2(print(x[[qName]]), file=fCSV)
+      write.csv2(print(x[[qName]], data=SDData(x)), file=fCSV)
    }
 }
 
@@ -493,12 +601,13 @@ function(x, ...){ return(quantile(x, probs=0.975, ...)) }
 
 
 `SDDataSettings` <- 
-function(x, asCSV=FALSE, inCAnalysis=NULL){ 
+function(x, asCSV=FALSE, inCAnalysis=NULL, latex=FALSE){ 
    if(class(x) == 'SDData' || class(x) == 'SDisc')
       return(SDDataAttr(x, attrName='settings')) 
    else{
       cNames <- list('oddGroup','inCAnalysis','tFun','vParGroup','vParY','vHeatmapY')
-      v <- c("NA",TRUE,"scale","var_group_1","NA","NA")
+      x <- SDDataDimnames(x)
+      v <- c("NA",TRUE,"mean sd","varGroup1","NA","NA")
       x <- matrix(v,ncol(x),length(v),byrow=TRUE, dimnames=list(colnames(x),cNames))
       x[,'vHeatmapY'] <- x[,'vParY']<- 1:nrow(x)
       x[,'oddGroup'] <- row.names(x)
@@ -507,10 +616,14 @@ function(x, asCSV=FALSE, inCAnalysis=NULL){
          x[inCAnalysis,'inCAnalysis'] <- 'TRUE'
          x[x[,'inCAnalysis'] == FALSE,'tFun'] <- NA
       }
-      if(asCSV)
+      if(!latex && asCSV == TRUE)
          write.csv(x,file='settings.csv')
-      else
+      else if(!latex && asCSV == FALSE)
          return(x)
+      else if(!latex && is.character(asCSV))
+         write.csv(x,file=asCSV)
+      else if(latex)
+         texTable(x, type='latex', cap='SDDataSettings')
    }
 }
 
@@ -566,8 +679,10 @@ function(x, data=NULL, fun='mean'){
       else
          cat2('Data must be provided to compute this pattern ')
    }
-   else
-      return(SDPattern(cbind(print(data), class=print(x)[,'class']), fun))
+   else{
+      df <- cbind(print(data, allNumVars=TRUE), class=print(x,data=data)[,'class'])
+      return(SDPattern(df, fun))
+   }
 }
 
 `SDCModelColors` <- 
@@ -615,6 +730,9 @@ function(x, value=NULL){ return(SDDataAttr(x, attrName='subset', value=value)) }
 `SDDataOrig` <- 
 function(x, value=NULL){ return(SDDataAttr(x, attrName='dataOrig', value=value)) }
 
+`SDDataXY` <- 
+function(x, value=NULL){ return(SDDataAttr(x, attrName='xy', value=value)) }
+
 `SDDataXlim` <- 
 function(x, value=NULL){ return(SDDataAttr(x, attrName='xlim', value=value)) }
 
@@ -624,18 +742,11 @@ function(x, value=NULL){ return(SDDataAttr(x, attrName='ylim', value=value)) }
 `SDDataMai` <- 
 function(x, value=NULL){ return(SDDataAttr(x, attrName='mai', value=value)) }
 
-
-`SDTDataName` <- 
-function(x){ return(attr(x,'vName'))}
-
-`SDTDataElmtModel` <-
-function(x){ return(attr(x,'model')) }
-
-`SDTDataElmtRes` <-
-function(x){ return(attr(x,'res')) }
+`SDDataRInfo` <- 
+function(x, value=NULL){ return(SDDataAttr(x, attrName='rinfo', value=sessionInfo())) }
 
 `SDTDataElmt` <- 
-function(x, data=NULL, var=NULL){
+function(x, data=NULL, var=NULL, fModel=NULL){
    if(class(x) == 'SDTData')
       return(attr(x,'elmt'))
    else if(class(x) == 'SDData')
@@ -644,38 +755,34 @@ function(x, data=NULL, var=NULL){
       return(SDTDataElmt(SDData(x)))
    else if(!is.null(data) && !is.null(var)){
       f <- strsplit(x,"[()']+")[[1]]
-      if(!is.na(f[2])){
-         argList <- list(formula=f[2], data=data[, all.vars(as.formula(f[2]))])
-         res <- do.call(f[1], args=argList)
+      if(is.null(fModel)){
+         if(!is.na(f[2]))
+            fArgs <- list(formula=f[2], data=as.data.frame(data[, all.vars(as.formula(f[2]))]))
+         if(f[1] %in% c('mean', 'min', 'median','max', 'sd'))
+            fArgs <- list(data[,var], na.rm=TRUE)
+         fModel <- do.call(f[1], args=fArgs)
       }
-      else if(f[1] %in% c('mean', 'min', 'median')){
-         argList <- list(data[,var], na.rm=TRUE)
-         est <- do.call(f[1], args=argList)
-         res <- data[,var]-est
-         names(res) <- row.names(data)
-         res <- structure(res, estimate=est)
+      if(!is.null(fModel)){
+         fArgs <- list(data[,var], fModel)
+         if(f[1] %in% c('mean', 'min', 'median'))
+            fRes <- do.call('-', fArgs)
+         if(f[1] %in% c('max', 'sd'))
+            fRes <- do.call(function(a, b, lambda=quantile(abs(a), probs=0.01)/1000){
+               return(a/(lambda+b))}, fArgs)
+         if(!is.na(f[2])){
+            fArgs <- list(formula=f[2], data=as.data.frame(data[,all.vars(as.formula(f[2]))]))
+            fRes <- predict(fModel, newdata=fArgs[['data']])-data[,var]
+         }
+         names(fRes) <- row.names(data)
       }
-      else if(f[1] %in% c('max', 'sd')){
-         argList <- list(data[,var], na.rm=TRUE)
-         est <- 0.0001+do.call(f[1], args=argList)
-         res <- data[,var]/est
-         names(res) <- row.names(data)
-         res <- structure(res, estimate=est)
-      }
-      else if(f[1] == 'scale'){
-         argList <- list(data[,var])
-         res <- do.call(f[1], args=argList)
-         row.names(res) <- row.names(data)
-      }
-      return(structure(x, fun=f[1], args=argList, res=res, class="SDTDataElmt"))
+      return(structure(x, vName=var, fName=f[1], fArgs=fArgs, fModel=fModel, fRes=fRes, class="SDTDataElmt"))
    }
    else
-      cat2('SDTDataElmt accepts \'SDTData\' objects.')
+      return(NULL)
 }
 
-
 `SDTData` <- 
-function(x, tFun=NULL, data=NULL){ 
+function(x, tFun=NULL, data=NULL, TData=NULL){ 
    if(class(x) == 'SDisc')
       return(SDTData(SDData(x))) 
    else if(class(x) == 'SDData')
@@ -684,40 +791,41 @@ function(x, tFun=NULL, data=NULL){
       tFunElmts <- strsplit(as.character(tFun), "[, ]+")[[1]]
       elmts <- list()
       newdata <- data
-      for(fElmt in tFunElmts){
-         res <- SDTDataElmt(fElmt, data=newdata, var=x)
-         m <- SDTDataElmtRes(res)
-         if(class(m) == 'lm')
-            newdata[names(m$residuals), x] <- m$residuals
-         else if(class(m) == 'matrix')
-            newdata[row.names(m), x] <- m
-         elmts[[fElmt]] <- res
+      for(f in tFunElmts){
+         fModel <- attr(SDTDataElmt(TData)[[f]], 'fModel')
+         elmts[[f]] <- res <- SDTDataElmt(f, data=newdata, var=x, fModel=fModel)
+         newdata[names(attr(res,'fRes')), x] <- attr(res,'fRes')
       }
       return(list(data=newdata, tdata=structure(x, vName=x, tFun=tFun, elmts=elmts, class='SDTData')))
    }
 }
 
 `SDData` <-
-function(x, dataOrig=NULL, SDTData=NULL, settings=NULL, initFun=list(SDDataCC), prefix=NULL, subset=NULL){
+function(x, prefix=NULL, dataOrig=NULL, TData=NULL, settings=NULL, initFun=list(SDDataCC), subset=NULL){
    if(class(x) == 'SDisc')
       return(attr(x,'SDData'))
    else if(class(x) == 'SDData'){
       if(!is.null(prefix))
          x <- SDPrefix(x, prefix) # do basedir, figdir and tabdir
-      if(!is.null(subset))
+      else
+         x <- SDPrefix(x, today())
+      if(!is.null(subset)) # extract a subset of the data
          return(structure(print(x)[which(subset %in% row.names(print(x))),], dataOrig=SDDataOrig(x),
-            SDTData=SDTData(x), settings=SDDataSettings(x), xlim=SDDataXlim(x), ylim=SDDataYlim(x), mai=SDDataMai(x),
-            prefix=SDPrefix(x), baseDir=SDBaseDir(x), figDir=SDFigDir(x), tabDir=SDTabDir(x), rinfo=sessionInfo(),
-            subset=subset, class='SDData'))
-      else 
+            initFun=initFun, TData=SDTData(x), settings=SDDataSettings(x), xlim=SDDataXlim(x),
+            ylim=SDDataYlim(x), mai=SDDataMai(x), prefix=SDPrefix(x), baseDir=SDBaseDir(x), figDir=SDFigDir(x),
+            tabDir=SDTabDir(x), rinfo=sessionInfo(), subset=subset, class='SDData'))
+      else # or simply returns the original object 
          return(x)
    }
    else{
-      if(is.null(dataOrig))
-         dataOrig <- x
-      if(length(settings) == 1)
+      x <- SDDataDimnames(x)
+      if(is.null(settings))
+         settings <- SDDataSettings(x)
+      else if(length(settings) == 1)
          if(file.exists(settings))
             settings <- read.csv(settings, row.names=1, sep=';')
+      if(is.null(dataOrig))
+         dataOrig <- x
       for(fun in initFun)
          x <- fun(x, settings)
       x <- x[,row.names(settings)]
@@ -730,13 +838,9 @@ function(x, dataOrig=NULL, SDTData=NULL, settings=NULL, initFun=list(SDDataCC), 
          tRes[[i]] <- res[["tdata"]]
          newdata <- res[["data"]]
       }
-      res <- structure(data.matrix(newdata), dataOrig=dataOrig, SDTData=tRes, settings=settings, xlim=NULL,
-         ylim=NULL, mai=NULL, prefix=prefix, baseDir=NULL, figDir=NULL, tabDir=NULL, rinfo=sessionInfo(),
-         class='SDData')
-      res <- SDPrefix(res, prefix) # do basedir, figdir and tabdir
-      res <- SDDataXlim(res, c(-3,3))
-      res <- SDDataYlim(res, c(0,50))
-      res <- SDDataMai(res, c(0.6,0.3,0.05,0.05))
+      res <- structure(data.matrix(newdata), dataOrig=dataOrig, initFun=initFun, SDTData=tRes, settings=settings,
+         prefix=prefix, class='SDData')
+      res <- SDDataSetup(res, prefix=prefix)
       return(res)
    }
 }
@@ -869,8 +973,12 @@ function(x, class, target='Class'){
    df <- cbind(x, modelClass=map(class))
    df <- cbind(df, target=as.character(SDDataOrig(x)[row.names(df),target]))
    m <- xtabs( ~.,df[,c("modelClass","target")])
-   legend <- paste2('Joint distribution of the membership and the ', target,)
-   res <- structure(m, legend=legend, class='SDStats')
+   test <- chisq.test(m, simulate.p.value=TRUE)
+   p <- sprintf('%.3f', test[["p.value"]])
+   chi2 <- sprintf('%3f', test[["statistic"]])
+   legend <- paste2('Joint distribution of the \\textbf{', target,'} and the different subtypes
+      ($p_{\\chi^2}=',p,', \\chi^2=', chi2,'$)')
+   res <- structure(m, test=test, legend=legend, class='SDStats')
    return(res)
 }
 
@@ -933,7 +1041,7 @@ function(x, n=NULL, modelName=NULL, G=NULL, latex=FALSE, lab='bic5', ...){
    if(!is.null(modelName))
       m <- m[m$modelName == modelName, ]
    if(latex)
-      texTable(m, type='latex', cap=paste2(SDPrefix(x),', models whose \\textbf{relative BIC} score difference
+      texTable(m, type='latex', cap=paste2('\\textbf{',SDPrefix(x),'}, models whose \\textbf{relative BIC} score difference
          is \\textbf{less than 5\\%}.'), lab=lab)
    else
       return(m)
@@ -945,8 +1053,11 @@ function(x, ...){
 }
 
 `print.SDData` <-
-function(x, rseed=NULL, range=1:3, latex=FALSE, ...){
-   m <- as.matrix(x[1:nrow(x),SDDataInCAnalysis(x)])
+function(x, rseed=NULL, range=1:3, allNumVars=FALSE, latex=FALSE, ...){
+   if(allNumVars)
+      m <- as.matrix(x[1:nrow(x),!is.na(SDDataSettings(x)[,'tFun'])])
+   else
+      m <- as.matrix(x[1:nrow(x),SDDataInCAnalysis(x)])
    if(is.null(rseed)){
       if(latex)
          texTable(m, cap=paste2(SDPrefix(x), ', extract of the \\textbf{transformed} data matrix.'),
@@ -960,9 +1071,9 @@ function(x, rseed=NULL, range=1:3, latex=FALSE, ...){
       m <- m[rNames, cNames] 
       mOrig <- SDDataOrig(x)[rNames, cNames]
       if(latex){
-         texTable(m, cap=paste2(SDPrefix(x), ', extract of the \\textbf{transformed} data matrix.'),
-            lab=paste2('SDData',SDPrefix(x)))
          texTable(mOrig, cap=paste2(SDPrefix(x), ', extract of the \\textbf{original} data matrix.'),
+            lab=paste2('SDData',SDPrefix(x)))
+         texTable(m, cap=paste2(SDPrefix(x), ', extract of the \\textbf{transformed} data matrix.'),
             lab=paste2('SDData',SDPrefix(x)))
       }
       else
@@ -971,8 +1082,9 @@ function(x, rseed=NULL, range=1:3, latex=FALSE, ...){
 }
 
 `print.SDCModel` <-
-function(x, ...){
-   z <- SDCModel(x)[["z"]]
+function(x, data, ...){
+   model <- em(data=print(data), modelName=SDCModel(x)$modelName, parameters=SDCModel(x)$parameters, warn=FALSE)
+   z <- model[["z"]]
    z <- cbind(z, class=map(z))
    colnames(z)[1:(ncol(z)-1)] <- 1:(ncol(z)-1)
    return(z)
@@ -1001,7 +1113,7 @@ function(x, y=NULL, m1=1, m2=2, latex=FALSE, lab='jointdistrib', ...) {
          cap <- paste2('(', m1,')x(', m2,')')
       }
       if(latex && !is.null(res))
-         texTable(res[["xtab"]], cap=doCaption(res,cap), digits=0, label=lab)
+         texTable(res[["xtab"]], cap=doCaption(res,cap), digits=0, lab=lab)
       else
          return(res)
    }
@@ -1044,101 +1156,89 @@ function(x, latex=FALSE, ...){
 }
 
 `summary.SDTDataElmt` <-
-function(object, digitsSE=2, ...){
-   x <- SDTDataElmtRes(object)
-   if(class(x) == 'lm'){
-      xSum <- summary(x)
-      xCoefs <- xSum$coefficients
-      cNames <- c(paste(row.names(xCoefs), c('(SE; Pr(>|t|))')),'$R^2$ (adj-$R^2$; N)')
-      res <-  matrix(NA, 1, length(cNames), dimnames=list(summary(x)$call[[2]], cNames)) 
-      for(i in 1:nrow(xCoefs))
-         res[, cNames[i]] <- sprintf(paste2('%.3f (%.', digitsSE, 'f; %.1e)'), xCoefs[i,1], xCoefs[i,2],
-            xCoefs[i,4]) 
-      res[, ncol(res)] <- sprintf('%.3f (%.3f; %d)', xSum$r.squared, xSum$adj.r.squared,
-         length(xSum$residuals))
+function(object, digits=2, ...){
+   fModel <- attr(object,'fModel')
+   fName <- attr(object,'fName')
+   n <- digits
+   if(class(fModel) == 'lm'){
+      m <- summary(fModel)
+      k <- m$coefficients
+      cNames <- c(paste(row.names(k), c('(SE; Pr(>|t|))')),'$R^2$ (adj-$R^2$; N)')
+      res <-  matrix(NA, 1, length(cNames), dimnames=list(summary(fModel)$call[[2]],cNames)) 
+      for(i in 1:nrow(k))
+         res[,cNames[i]] <- sprintf(paste2('%.',n,'f (%.',n,'f; %.1e)'),k[i,1],k[i,2],k[i,4]) 
+      res[,ncol(res)] <- sprintf(paste2('%.',n,'f (%.',n,'f; %d)'),m$r.squared,m$adj.r.squared,length(m$residuals))
    }
-   else if(!is.null(attr(x,'scaled:center'))){
-      cNames <- c('mean','scale')
-      res <- matrix(NA, 1, length(cNames),dimnames=list(list(), cNames))
-      res[, cNames] <- sprintf('%.2e', c(attr(x,'scaled:center'), attr(x,'scaled:scale')))
-   }
-   else if(!is.null(attr(x,'estimate')))
-      res <- matrix(sprintf('%.2e',as.numeric(x)), 1, 1, dimnames=list(attr(object,'fun'), 'estimate'))
-   else{ 
-      cat2('other data treatments to be implemented')
-      res <- NULL
-   }
+   else
+      res <- matrix(sprintf(paste2('%.', n,'e'),as.numeric(fModel)),1,1,dimnames=list(attr(object,'vName'), fName))
    return(res)
 }
 
 `summary.SDTData` <- 
-function(object, pattern=NULL, digitsSE=2, ...){
-   x <- SDTDataElmt(object)
-   if(length(x) == 0)
-      return(NULL)
-   else{
-      idSeq <- 1:length(x)
-      if(!is.null(pattern))
-         idSeq <- grep(pattern, names(x))
-      res <- matrix(NA, length(idSeq),0,dimnames=list(rep('',length(idSeq)),list()))
-      for(id in 1:length(idSeq)){
-         tRes <- summary(x[[idSeq[id]]])
+function(object, q=NULL, digits=2, ...){
+   res <- NULL 
+   tList <- SDTDataElmt(object)
+   for(tElmt in tList){
+      tRes <- summary(tElmt, digits=digits)
+      if(is.null(res))
+         res <- tRes
+      else{
          cNames <- colnames(tRes)[which(!(colnames(tRes) %in% colnames(res)))]
-         res <- cbind(res, matrix(NA, nrow(res),length(cNames),dimnames=list(row.names(res), cNames))) 
-         res[id, colnames(tRes)] <- tRes 
-         if(!is.null(row.names(tRes)))
-            row.names(res)[id] <- row.names(tRes) 
-         else if(is.null(row.names(tRes)))
-            row.names(res)[id] <- attr(object, 'vName') 
-         else if(colnames(tRes)[1] == 'estimate')
-            row.names(res)[id] <- paste2(attr(object, 'vName'), ' ', row.names(tRes)) 
+         res <- cbind(res, matrix(NA, nrow(res), length(cNames), dimnames=list(row.names(res), cNames))) 
+         res[row.names(tRes), colnames(tRes)] <- tRes 
       }
    }
    return(res)
 }
 
 `summary.SDData` <- 
-function(object, pattern=NULL, latex=FALSE, ...){
-   if(!is.null(pattern)){
+function(object, q=NULL, latex=FALSE, digits=3, ...){
+   if(!is.null(q)){
       lName <- lapply(SDTData(object), function(y){return(names(SDTDataElmt(y)))})
-      lName <- lapply(lName, function(y, p=pattern){return(grep(pattern=p, y))})
+      lName <- lapply(lName, function(y, p=q){return(grep(p, y))})
       cNames <- NULL
       for(i in names(lName))
          if(length(lName[[i]]) > 0)
             cNames <- c(cNames, i)
    }
-   else 
+   else
       cNames <- names(SDTData(object))
    resSummary <- list()
    for(vName in cNames){
-      vRes <- summary(SDTData(object)[[vName]], pattern=pattern)
+      vRes <- summary(SDTData(object)[[vName]], q)
       if(!is.null(vRes))
-         resSummary[[vName]] <- vRes 
+         resSummary[[vName]] <- vRes
    }
    rName <- unique(unlist(lapply(resSummary, row.names)))
    res <- matrix(NA, length(rName), 0, dimnames=list(rName, list()))
    for(vName in names(resSummary)){
       mSum <- resSummary[[vName]]
-      cNames <- unique(colnames(mSum),res)
+      cNames <- unique(c(colnames(mSum), colnames(res)))
       if(length(cNames) != length(colnames(res)))
          res <- cbind(res, matrix(NA, nrow(res), length(cNames)-length(colnames(res)),
             dimnames=list(row.names(res), cNames[which(!(cNames %in% colnames(res)))])))
       res[row.names(mSum), colnames(mSum)] <- mSum
    }
    if(latex)
-      texTable(res, cap=paste2(SDPrefix(object), ' summary of the different data treatments operated on', 
-         'the data.'), lab=paste2('tab:',SDPrefix(object),'DataSummary'))
+      texTable(res, cap=paste2(SDPrefix(object), ' summary of the different data treatments operated on ', 
+         'the data.'), lab=paste2('tab:',SDPrefix(object),'DataSummary'), align=paste2(rep('r',ncol(res)+1)), ...)
    else
       return(data.frame(res))
 }
 
 `texTable` <- 
-function(x, cap='', lab='tab:', digits=NULL, sanitize=TRUE, ...){
-   sanitize.text.function <- NULL
+function(x, cap='', lab='', digits=NULL, sanitize=TRUE, align=NULL, oddColor='blueLines', longtab=FALSE, ...){
+   f <- NULL
    if(!sanitize)
-      sanitize.text.function <- function(x){x}
-   print(xtable(x, caption=cap, label=paste2('tab:',lab), digits=digits, type='latex'), table.placement="h!",
-      tabular.environment="longtable", floating=FALSE, sanitize.text.function=sanitize.text.function, ...)
+      f <- function(y){y}
+   if(!is.null(oddColor))
+      cat2(paste2("\\rowcolors{2}{white}{", oddColor,"}"))
+   if(longtab)
+      print(xtable(x, caption=cap, label=paste2('tab:',lab), digits=digits, align=align, type='latex'),
+         table.placement="h!", tabular.environment='longtable', floating=FALSE, sanitize.text.function=f, ...)
+   else
+      print(xtable(x, caption=cap, label=paste2('tab:',lab), digits=digits, align=align, type='latex'),
+         table.placement="h!", sanitize.text.function=f, ...)
 }
 
 `summary.SDCModel` <- 
@@ -1146,8 +1246,9 @@ function(object, data, type='oddRatiosB', latex=FALSE, lab='', shortStr=FALSE, .
    if(is.null(data) || class(data) != 'SDData')
       cat2('To summary an SDCModel, an SDData-instance must be provided as second parameter (data).')
    else{
-      class <- SDCModel(object)[["z"]]
-      m <- do.call(type, args=list(data, class=class, ...))
+      # class <- SDCModel(object)[["z"]]
+      class <- print(object, data)
+      m <- do.call(type, args=list(data, class=class[,-ncol(class)], ...))
       if(shortStr){
          summaryStr <- function(str){
             cList <- strsplit(strsplit(gsub('and[ ]*','',str),' ')[[1]],'')
@@ -1159,16 +1260,40 @@ function(object, data, type='oddRatiosB', latex=FALSE, lab='', shortStr=FALSE, .
          row.names(m) <- sapply(row.names(m), summaryStr)
       }
       set <- SDCModelSettings(object)
-      if(latex)
-         texTable(print(m), cap=paste2(attr(m,'legend'), paste2(' in model ', set[[1]], ',', set[[2]], ',', set[[3]],'.')),
-            lab=paste2(type, lab))
+      if(latex){
+         df <- print(m)
+         caption <- paste2(attr(m,'legend'), paste2(' in model ', set[[1]], ',', set[[2]], ',', set[[3]],'.'))
+         cell.format <- matrix(rep("\\color{grey}",nrow(df)*ncol(df)), nrow(df), ncol(df))
+         if(type=='oddRatiosB' || type=='oddRatios'){
+            cell.format[df <  -2] <- "\\color{blue3}"
+            cell.format[df < -10] <- "\\color{blue4}"
+            cell.format[df >   2] <- "\\color{red3}"
+            cell.format[df >  10] <- "\\color{red4}"
+            digits <- 2
+         }
+         else if(type == 'jointDistrib'){
+            val <- quantile(abs(df),probs=0.8)
+            cell.format[df < -val] <- "\\color{blue3}"
+            cell.format[df >  val] <- "\\color{red3}"
+            digits <- 0
+         }
+         else if(type == 'chi2test'){
+            cell.format <- matrix(rep("",nrow(df)*ncol(df)), nrow(df), ncol(df))
+            cell.format[df[,1]<0.05,1] <- "\\color{red3}"
+            cell.format[df[,1]<0.01,1] <- "\\color{red4}"
+            digits <- 3
+         }
+         df <- apply(df, c(1,2), sprintf, fmt=paste2('%.', digits,'f'))
+         df <- apply(abind(cell.format, df, along=3), c(1,2), paste, collapse=' ')
+         texTable(df, cap=caption, lab=lab, sanitize=FALSE, align=rep('r',ncol(df)+1))
+      }
       else 
-         return(print(m))
+         return(m)
    }
 }
 
 `summary.SDisc` <- 
-function(object, q=NULL, ...){
+function(object, q=1, ...){
    if(is.null(q)){
       cat2('- DATA SUMMARY -')
       print(summary(SDData(object)))
@@ -1182,8 +1307,8 @@ function(object, q=NULL, ...){
       cat2('- BIC TABLE -')
       print(as.data.frame(summary(bicTable(object))))
       cat2('- BEST MODEL -')
-      print(data.frame("best_models"=bestModel(object)))
+      print(data.frame("bestModels"=bestModel(object)))
    }
    else
-      summary(object[[bestModel(object, n=q)]], data=SDData(object), ...)
+      return(summary(object[[bestModel(object, n=q)]], data=SDData(object), ...))
 }

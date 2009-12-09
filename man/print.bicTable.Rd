@@ -15,5 +15,6 @@
 settings['Species',] <- c(NA,FALSE, NA, NA, NA, NA)
 x <- SDisc(iris, settings=settings, prefix='iris')
 print(bicTable(x))}
-\keyword{methods,print}
+\keyword{methods}
+\keyword{print}
 \alias{print.bicTable}

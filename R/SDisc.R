@@ -599,7 +599,6 @@ function(x, ...){ return(quantile(x, probs=0.025, ...)) }
 `upQuant` <- 
 function(x, ...){ return(quantile(x, probs=0.975, ...)) }
 
-
 `SDDataSettings` <- 
 function(x, asCSV=FALSE, inCAnalysis=NULL, latex=FALSE){ 
    if(class(x) == 'SDData' || class(x) == 'SDisc')
@@ -693,15 +692,15 @@ function(x){ return(SDCModelAttr(x, attrName='cFunSettings')) }
 
 `SDPrefix` <- 
 function(x, value=NULL){ 
-   if(!is.null(value)){
+   if(is.null(value))
+      return(SDDataAttr(x, attrName='prefix')) 
+   else{
       x <- SDDataAttr(x, attrName='prefix', value=value)
       x <- SDBaseDir(x, SDPrefix(x))
       x <- SDFigDir(x, paste2(SDPrefix(x),'/figures'))
       x <- SDTabDir(x, paste2(SDPrefix(x),'/tables'))
-      return(x)
    }
-   else
-      return(SDDataAttr(x, attrName='prefix')) 
+   return(x)
 }
 
 `SDBaseDir` <- 
@@ -805,10 +804,7 @@ function(x, prefix=NULL, dataOrig=NULL, TData=NULL, settings=NULL, initFun=list(
    if(class(x) == 'SDisc')
       return(attr(x,'SDData'))
    else if(class(x) == 'SDData'){
-      if(!is.null(prefix))
-         x <- SDPrefix(x, prefix) # do basedir, figdir and tabdir
-      else
-         x <- SDPrefix(x, today())
+      # x <- SDPrefix(x, prefix) # do basedir, figdir and tabdir
       if(!is.null(subset)) # extract a subset of the data
          return(structure(print(x)[which(subset %in% row.names(print(x))),], dataOrig=SDDataOrig(x),
             initFun=initFun, TData=SDTData(x), settings=SDDataSettings(x), xlim=SDDataXlim(x),

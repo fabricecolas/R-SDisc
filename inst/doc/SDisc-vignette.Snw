@@ -1,0 +1,221 @@
+%\VignetteIndexEntry{SDisc-vignette} 
+\documentclass[a4paper,12pt]{article}
+\usepackage[latin1]{inputenc}
+\usepackage[left=2.5cm,top=2cm,right=2.5cm,bottom=2cm]{geometry}
+\usepackage[english]{babel}
+\usepackage{url}
+\usepackage[small,bf]{caption}
+\usepackage{graphicx} 
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{color}
+\usepackage[table]{xcolor}
+\usepackage{longtable}
+\usepackage[ colorlinks=true, citecolor=blueDoc, filecolor=blueDoc,
+linkcolor=blueDoc, urlcolor=blueDoc]{hyperref}
+\usepackage{lscape}
+\usepackage{SDisc}
+
+\title{\textsf{R SDisc}: Integrated methodology for\\ data subtype discovery}
+\author{Fabrice Colas\footnote{Leiden University Medical Center, Einthovenweg 20, 2300RC Leiden, the Netherlands}}
+
+<<dir, echo=false, results=hide>>=
+options(continue="   ")
+options(width=85)
+dir0 <- dir(recursive=TRUE)
+@
+
+\pagestyle{fancy}
+\begin{document}
+\maketitle
+
+Cluster analysis\footnote{\url{http://www.businessdictionary.com/definition/cluster-analysis.html}} is a
+statistical technique that aims to subset observations into groups, such that similar items are in the same
+clusters but are very different from items in other clusters. As a discovery tool, cluster analysis may enable   to
+reveal associations, patterns, relationships, and structure in data. R SDisc is an additional tool to perform
+cluster analysis. 
+
+However, instead of proposing another clustering algorithm to the vast landscape of existing techniques
+\cite{jain99}, we focused on the development of a pipelined clustering analysis tool that would integrate the
+necessary tools and methods to run a complete analysis from data processing to subtype validation
+\cite{colas09phdthesis,colas08isola}. It has been primarily designed for, and applied to clinical research on
+complex pathologies like Parkinson's disease \cite{vanrooden10clinical}, aggressive brain tumours
+\cite{colas10finding} and Osteoarthritis where, more homogeneous patient subtypes from clinical predictors are
+sought for in order to break down the known clinical heterogeneity of those diseases (one disease-umbrella,
+different manifestations). 
+
+As such, R SDisc includes methods for data treatment and pre-processing, repeated cluster analysis, model
+selection, model reliability \cite{colas08reliability} and reproducibility assessment, subtype characterization
+and validation by visual and table summaries. In the design of R SDisc, we emphasized especially the validity of
+the inference steps, the accessibility of the cluster analysis protocol, the reproducibility of the results, and
+the availability as an open source package of the technique. This vignette is an interactive documentation on R
+SDisc. %, it outlines as follows.
+
+\begin{figure}[hp!] 
+   \begin{center} 
+      \includegraphics[width=14cm]{figures/scenario.pdf}
+      \caption{\label{fig:rsd}The data mining scenario consists in a sequence of five steps \cite{colas08isola}:
+      the data preparation, the cluster modeling based on \cite{FraleyRaftery2002,MclustSoftwareManual2006}, the
+      model selection, the characterization and comparison of the subtypes and the relevance evaluation.}
+   \end{center} 
+\end{figure}
+%
+% TABLE OF CONTENTS
+%
+\tableofcontents
+
+\section{R SDisc: Building blocks and Installation}
+<<installRSDisc, eval=false>>=
+install.packages('SDisc', dep=TRUE)
+@
+<<loadRSDisc>>=
+library(SDisc)
+@
+
+%
+% DATA
+%
+\section{Data}
+R SDisc implements its own data structure to preserve a copy of the original data while applying some treatments to
+the data (feature selection, complete cases, adjustment), to limit cluster analysis to a subset of the predictors,
+to validate subtypes against clinical predictors not included in the cluster analysis (e.g. gender, bmi).
+
+In this section, we introduce data examples that will be used throughout the hands on, to illustrate the
+functionnalities of R SDisc. Next, how R SDisc preprocess the data is introduced. Then, we present SDisc data
+container possibilities to do exploratory data analysis plots. In the case a previous processing was performed
+(e.g. year one of a longitudinal study), centering and adjustment estimates are retrieved and applied to the new
+data. Last, when there are too many predictors (e.g. with spectral data), predictor selection by $\chi^2$-testing
+can be performed. 
+
+% EXAMPLES
+\subsection{Example}
+We simulate an example called \texttt{normdep.df} with three predictors; the first follows $\mathcal{N}(0,1)$, the
+second is a time variable and the third depends on the time, provided $v=2 \times t+\epsilon$. As a last step, we
+also inject 5 missing values at random into the data. 
+<<normdep>>=
+set.seed(6015)
+Eps <- runif(50)
+time <- sample(1:5, 50, replace=TRUE)
+normdep.df <- matrix(c(rnorm(50), time, 2*time+Eps), 50, 3, dimnames=list(list(),c("norm","t","v")))
+normdep.df[sample(1:nrow(normdep.df))[1:5]] <- NA
+@
+
+\subsection{Preprocessing}
+<<SDDataSettings, results=tex>>=
+normdep.set <- SDDataSettings(normdep.df)
+normdep.set[,'tFun'] <- c('mean sd','', 'lm(v~t)')
+@
+<<SDData>>=
+normdep <- SDData(normdep.df, settings=normdep.set, prefix='normdep')
+@
+<<results=tex>>=
+SDDataSettings(normdep, latex=TRUE)
+@
+
+\subsection{Exploration}
+<<results=tex>>=
+naPattern(normdep, latex=TRUE)
+print(normdep, rseed=6013, latex=TRUE)
+plot(normdep, latex=TRUE)
+summary(normdep, q='mean|sd', latex=TRUE)
+summary(normdep, q='lm', latex=TRUE)
+@
+
+
+\subsection{Processing Given Other Data Model}
+<<>>=
+set.seed(6016)
+Eps <- runif(30)
+time <- sample(1:5, 30, replace=TRUE)
+normdep.df2 <- matrix(c(rnorm(30), time, 2*time+Eps), 30, 3, dimnames=list(list(), c("norm","t","v")))
+normdep2 <- predict(normdep, newdata=normdep.df2, prefix='normdep2')
+@
+<<results=tex>>=
+summary(normdep2, q='lm', latex=TRUE, sanitize=FALSE)
+summary(normdep2, q='mean|sd', latex=TRUE)
+@
+
+
+\subsection{$\chi^2$ Feature Selection of Spectral Data}
+todo
+
+%
+% CLUSTER ANALYSIS
+%
+\section{Cluster Analysis}
+\subsection{Repeated Model Based Cluster Analysis with MClust}
+<<>>=
+class(normdep)
+normdep <- SDisc(normdep, settings=normdep.set, prefix='normdep', 
+   cFunSettings=list(modelName=c("EII", "VII", "VEI","VVI"), G=3:5, rseed=6013:6023))
+class(normdep)
+class(SDData(normdep))
+class(SDDataSettings(normdep))
+@
+
+<<eval=false>>=
+normdep <- SDisc(normdep)
+@
+
+\subsection{Likelihood-Based Model Selection}
+
+<<SDiscBictable, results=tex>>=
+summary(bicTable(normdep), latex=TRUE)
+print(bicTable(normdep), modelName='VII', G=4, latex=TRUE)
+@
+
+%
+% POST CLUSTER ANALYSIS
+%
+\section{Comparing, Characterizing, Validating and Testing Reproducibility of Subtypes}
+\subsection{Cross Comparison Between Subtyping Analyses}
+<<SDiscCompare, results=tex>>=
+print(normdep, latex=TRUE)
+print(normdep,  m1=1, m2=bestModel(normdep, modelName='VII', G=4)[1], latex=TRUE)
+@
+
+\subsection{Characterization of the Subtypes}
+<<SDiscCharacterize,results=tex>>=
+plot(normdep, latex=TRUE)
+summary(normdep, q=1, latex=TRUE)
+@
+
+\subsection{Validation of the Subtypes}
+todo with another dataset including a treatment group for instance
+
+\subsection{Reproducibility of Subtypes on New Data}
+todo use of predict.SDisc
+
+\appendix
+\section{Session Info}
+<<>>=
+sessionInfo()
+@
+<<cleanup>>=
+dir1 <- dir(recursive=TRUE)
+dir1 <- dir1[grep('pdf', dir1, invert=T)]
+file.remove(dir1[which(!(dir1 %in% dir0))])
+file.remove(c('normdep2/figures','normdep2/tables'))
+file.remove(c('normdep2'))
+@
+
+
+
+%
+% LIST OF FIGURES, LIST OF TABLES
+%
+\listoftables
+\addcontentsline{toc}{section}{List of Tables}
+\listoffigures
+\addcontentsline{toc}{section}{List of Figures}
+
+%
+% REFERENCES
+%
+\addcontentsline{toc}{section}{References}
+\nocite{*}
+\bibliographystyle{plain}
+\bibliography{SDisc-vignette}
+
+
+\end{document}

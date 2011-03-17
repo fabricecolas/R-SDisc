@@ -601,8 +601,10 @@ function(x, ...){ return(quantile(x, probs=0.975, ...)) }
 
 `SDDataSettings` <- 
 function(x, asCSV=FALSE, inCAnalysis=NULL, latex=FALSE){ 
-   if(class(x) == 'SDData' || class(x) == 'SDisc')
+   if((class(x) == 'SDData' || class(x) == 'SDisc') & !latex)
       return(SDDataAttr(x, attrName='settings')) 
+   if((class(x) == 'SDData' || class(x) == 'SDisc') & latex)
+      texTable(SDDataAttr(x, attrName='settings'), type='latex', cap='SDDataSettings')
    else{
       cNames <- list('oddGroup','inCAnalysis','tFun','vParGroup','vParY','vHeatmapY')
       x <- SDDataDimnames(x)
@@ -1037,8 +1039,7 @@ function(x, n=NULL, modelName=NULL, G=NULL, latex=FALSE, lab='bic5', ...){
    if(!is.null(modelName))
       m <- m[m$modelName == modelName, ]
    if(latex)
-      texTable(m, type='latex', cap=paste2('\\textbf{',SDPrefix(x),'}, models whose \\textbf{relative BIC} score difference
-         is \\textbf{less than 5\\%}.'), lab=lab)
+      texTable(m, type='latex', cap=paste2('Top ranking \\textbf{',SDPrefix(x),'} models.'), lab=lab)
    else
       return(m)
 }
@@ -1056,7 +1057,7 @@ function(x, rseed=NULL, range=1:3, allNumVars=FALSE, latex=FALSE, ...){
       m <- as.matrix(x[1:nrow(x),SDDataInCAnalysis(x)])
    if(is.null(rseed)){
       if(latex)
-         texTable(m, cap=paste2(SDPrefix(x), ', extract of the \\textbf{transformed} data matrix.'),
+         texTable(m, cap=paste2('\\textbf{',SDPrefix(x),'}, extract of the \\textbf{transformed} data matrix.'),
             lab=paste2('SDData',SDPrefix(x)))
       else
          return(m)
@@ -1067,9 +1068,9 @@ function(x, rseed=NULL, range=1:3, allNumVars=FALSE, latex=FALSE, ...){
       m <- m[rNames, cNames] 
       mOrig <- SDDataOrig(x)[rNames, cNames]
       if(latex){
-         texTable(mOrig, cap=paste2(SDPrefix(x), ', extract of the \\textbf{original} data matrix.'),
+         texTable(mOrig, cap=paste2('\\textbf{',SDPrefix(x),'}, extract of the \\textbf{original} data matrix.'),
             lab=paste2('SDData',SDPrefix(x)))
-         texTable(m, cap=paste2(SDPrefix(x), ', extract of the \\textbf{transformed} data matrix.'),
+         texTable(m, cap=paste2('\\textbf{',SDPrefix(x),'}, extract of the \\textbf{transformed} data matrix.'),
             lab=paste2('SDData',SDPrefix(x)))
       }
       else
@@ -1124,7 +1125,7 @@ function(object, fun='min', bic='relativeBic', latex=FALSE, lab='bic', fmt='%.2f
    idBestM <- which(df[,'relativeBic'] == 0)
    bestName <- paste(as.matrix(df[idBestM,1:3]), collapse=',', sep=' ')
    if(latex)
-      texTable(x.summary, cap=paste2(SDPrefix(object),', model ', bestName, ' shows the \\textbf{highest BIC} score
+      texTable(x.summary, cap=paste2('\\textbf{',SDPrefix(object),'}, model ', bestName, ' shows the \\textbf{highest BIC} score
          over: the repeated random starts, type of model and number of component. '), lab=lab) 
    else
       return(as.matrix(x.summary))
@@ -1143,9 +1144,9 @@ function(x, latex=FALSE, ...){
       m <- t(apply(is.na(SDDataOrig(x)[rowId, ]), 1, table))[,c('TRUE','FALSE')]
       colnames(m) <- c('isNA','isNotMissing')
       m <- cbind(m, naRate=100*m[,'isNA']/apply(m,1,sum))
-      texTable(m, lab=paste2('missing',SDPrefix(x)), cap=paste2( SDPrefix(x), ', index of the cases
-         presenting \\textbf{missing values} along with the number of missings and non-missings; the cases with a
-         missing value represent ', rate,'\\% of the available cases.'), ...)
+      texTable(m, lab=paste2('missing',SDPrefix(x)), cap=paste2( SDPrefix(x), ', index of the observations 
+         presenting \\textbf{missing values} along with the number of missings and non-missings; the observations with a
+         missing value represent ', rate,'\\% of the available observations.'), ...)
    }
    else
       cat2('A \'SDData\' object must be provided to the function.')
@@ -1216,7 +1217,7 @@ function(object, q=NULL, latex=FALSE, digits=3, ...){
       res[row.names(mSum), colnames(mSum)] <- mSum
    }
    if(latex)
-      texTable(res, cap=paste2(SDPrefix(object), ' summary of the different data treatments operated on ', 
+      texTable(res, cap=paste2('\\textbf{',SDPrefix(object), '} summary of the different data treatments operated on ', 
          'the data.'), lab=paste2('tab:',SDPrefix(object),'DataSummary'), align=paste2(rep('r',ncol(res)+1)), ...)
    else
       return(data.frame(res))

@@ -32,8 +32,8 @@ dir0 <- dir(recursive=TRUE)
 Cluster analysis\footnote{\url{http://www.businessdictionary.com/definition/cluster-analysis.html}} is a
 statistical technique that aims to subset observations into groups, such that similar items are in the same
 clusters but are very different from items in other clusters. As a discovery tool, cluster analysis may enable   to
-reveal associations, patterns, relationships, and structure in data. R SDisc is an additional tool to perform
-cluster analysis. 
+reveal associations, patterns, relationships, and structure in data. \textsf{R} \textsf{SDisc} is an additional
+tool to perform cluster analysis. 
 
 However, instead of proposing another clustering algorithm to the vast landscape of existing techniques
 \cite{jain99}, we focused on the development of a pipelined clustering analysis tool that would integrate the
@@ -44,19 +44,19 @@ complex pathologies like Parkinson's disease \cite{vanrooden10clinical}, aggress
 sought for in order to break down the known clinical heterogeneity of those diseases (one disease-umbrella,
 different manifestations). 
 
-As such, R SDisc includes methods for data treatment and pre-processing, repeated cluster analysis, model
+As such, \textsf{R} \textsf{SDisc} includes methods for data treatment and pre-processing, repeated cluster analysis, model
 selection, model reliability \cite{colas08reliability} and reproducibility assessment, subtype characterization
-and validation by visual and table summaries. In the design of R SDisc, we emphasized especially the validity of
+and validation by visual and table summaries. In the design of \textsf{R} \textsf{SDisc}, we emphasized especially the validity of
 the inference steps, the accessibility of the cluster analysis protocol, the reproducibility of the results, and
-the availability as an open source package of the technique. This vignette is an interactive documentation on R
-SDisc. %, it outlines as follows.
+the availability as an open source package of the technique. This vignette is an interactive documentation on \textsf{R}
+SDisc. 
 
 \begin{figure}[hp!] 
    \begin{center} 
       \includegraphics[width=14cm]{figures/scenario.pdf}
-      \caption{\label{fig:rsd}The data mining scenario consists in a sequence of five steps \cite{colas08isola}:
-      the data preparation, the cluster modeling based on \cite{FraleyRaftery2002,MclustSoftwareManual2006}, the
-      model selection, the characterization and comparison of the subtypes and the relevance evaluation.}
+      \caption{\label{fig:rsd} Our pipelined cluster analysis describes as a sequence of steps \cite{colas08isola}:
+      data preparation, cluster modeling based on \cite{FraleyRaftery2002,MclustSoftwareManual2006}, model
+      selection, characterization, comparison of the subtypes and relevance evaluation.}
    \end{center} 
 \end{figure}
 %
@@ -64,7 +64,7 @@ SDisc. %, it outlines as follows.
 %
 \tableofcontents
 
-\section{R SDisc: Building blocks and Installation}
+\section{\textsf{R} \textsf{SDisc}: Building blocks and Installation}
 <<installRSDisc, eval=false>>=
 install.packages('SDisc', dep=TRUE)
 @
@@ -75,59 +75,94 @@ library(SDisc)
 %
 % DATA
 %
-\section{Data}
-R SDisc implements its own data structure to preserve a copy of the original data while applying some treatments to
-the data (feature selection, complete cases, adjustment), to limit cluster analysis to a subset of the predictors,
-to validate subtypes against clinical predictors not included in the cluster analysis (e.g. gender, bmi).
+\section{Data in \textsf{SDisc}}
+\textsf{R} \textsf{SDisc} implements its own data structure. The reason we implemented this structure is because we
+like to preserve a copy of the original data when transforming  the data by either of feature selection, complete
+cases filering, normalization. Also, this approach enable us to restrict the cluster analysis to only a subset of
+the predictors, which is sometimes desirable.
 
-In this section, we introduce data examples that will be used throughout the hands on, to illustrate the
-functionnalities of R SDisc. Next, how R SDisc preprocess the data is introduced. Then, we present SDisc data
-container possibilities to do exploratory data analysis plots. In the case a previous processing was performed
-(e.g. year one of a longitudinal study), centering and adjustment estimates are retrieved and applied to the new
-data. Last, when there are too many predictors (e.g. with spectral data), predictor selection by $\chi^2$-testing
-can be performed. 
-
-% EXAMPLES
-\subsection{Example}
-We simulate an example called \texttt{normdep.df} with three predictors; the first follows $\mathcal{N}(0,1)$, the
-second is a time variable and the third depends on the time, provided $v=2 \times t+\epsilon$. As a last step, we
-also inject 5 missing values at random into the data. 
+\paragraph{Data Example} We simulate an example called \texttt{normdep.df} with three predictors; the first follows
+$v_1 \sim \mathcal{N}(0,1)$, the second is a time variable $v_2 = t$ and the third depends on the time with $v_3
+= 2 \times t+\epsilon$. 
 <<normdep>>=
 set.seed(6015)
-Eps <- runif(50)
 time <- sample(1:5, 50, replace=TRUE)
-normdep.df <- matrix(c(rnorm(50), time, 2*time+Eps), 50, 3, dimnames=list(list(),c("norm","t","v")))
+normdep.df <- matrix(c(rnorm(50), time, 2*time+runif(50)), 50, 3, dimnames=list(list(),c("norm","t","v")))
+@
+Also, we inject 5 missing values at random into the data. 
+<<>>=
 normdep.df[sample(1:nrow(normdep.df))[1:5]] <- NA
 @
 
-\subsection{Preprocessing}
-<<SDDataSettings, results=tex>>=
-normdep.set <- SDDataSettings(normdep.df)
-normdep.set[,'tFun'] <- c('mean sd','', 'lm(v~t)')
+\paragraph{Data Transformation} A common initial step in data analysis is to normalize the data by centering around
+zero with unit variance or by adjusting for some known effect like age, bmi, gender. Therefore, we define in a
+matrix the particular transformation to apply to each predictor.
+
+In addition, we also define how predictors are ordered one to each other and whether predictors belong to the same
+group. While ordering information is used to arrange the graphical summaries (heatmaps, parallel coordinates), grouping
+is used to calculate odd ratios based on the aggregated sum of groups of predictors. Last, an indicator variable
+(\texttt{inCAnalysis}) identifies those predictors to include in the cluster analysis.
+<<SDDataSettings>>=
+class(normdep.df)
 @
-<<SDData>>=
+
+To do the data definition step, we use \texttt{SDDataSettings} that generates a sample  settings file to be saved
+\texttt{asCSV}. It can be edited from within \textsf{R} or from Excel. In the case \texttt{SDDataSettings} receives
+an \texttt{SDisc} or an \texttt{SDData}, it returns the \texttt{settings} of the current \texttt{SDisc} analysis or
+of the current \texttt{SDData} container.  When \texttt{latex} is set to \texttt{TRUE}, a \LaTeX-formated output is
+returned for use with Sweave reporting mechanism.  
+<<>>=
+normdep.set <- SDDataSettings(normdep.df)
+class(normdep.set)
+normdep.set[,'tFun'] <- c('mean sd','', 'lm(v~t)')
 normdep <- SDData(normdep.df, settings=normdep.set, prefix='normdep')
+class(normdep)
 @
 <<results=tex>>=
 SDDataSettings(normdep, latex=TRUE)
 @
 
-\subsection{Exploration}
+\paragraph{Data Exploration} Prior to cluster analysis, we proceed to elementary exploratory analysis of the data. 
+With \texttt{naPattern}, we either return a character vector of the record IDs that present missing values row-wise
+or a table (latex=TRUE) report of the missingness pattern for each record presenting at least one missing value.
+<<>>=
+naPattern(normdep)
+@
 <<results=tex>>=
 naPattern(normdep, latex=TRUE)
+@
+
+The method \texttt{print.SDisc} does return the transformed data matrix after the transformation. To verify the
+validity of the transformations, an \texttt{rseed} can be provided to the method in order to report side by side a
+random extract of the originals and of the transformed data matrix. The \texttt{range} parameter gives the number
+of rows and columns to extract randomly.  
+<<results=tex>>=
 print(normdep, rseed=6013, latex=TRUE)
+@
+
+With \texttt{plot.SDData}, exploratory plots such as boxplots and histograms are reported for each predictors. If
+\texttt{latex} is set to TRUE, then the \LaTeX  code to include the different figures is returned into the standard
+output for use with Sweave.
+<<results=tex>>=
 plot(normdep, latex=TRUE)
+@
+
+The \texttt{summary.SDData} method provides a summary of the data transformation process. The \texttt{q} parameter
+limits the summary to a subset of the data treatments by regular expression on the data \texttt{settings}-file. For
+mean, sd, scale, max, min it returns the estimates and for lm it reports the coefficient estimates as well as  the
+standard errors, $p$-value, $R^2$, adjusted $R^2$ and number of records on which the estimate was based on.
+<<results=tex>>=
 summary(normdep, q='mean|sd', latex=TRUE)
 summary(normdep, q='lm', latex=TRUE)
 @
 
-
-\subsection{Processing Given Other Data Model}
+\paragraph{Applying Previous Transformation Estimates to New Data} We illustrate how the transform estimates from
+the \texttt{normdep} data are re-used to transform \texttt{normdep.df2}, a new data set generated from the same
+process but with a different random seed.
 <<>>=
 set.seed(6016)
-Eps <- runif(30)
 time <- sample(1:5, 30, replace=TRUE)
-normdep.df2 <- matrix(c(rnorm(30), time, 2*time+Eps), 30, 3, dimnames=list(list(), c("norm","t","v")))
+normdep.df2 <- matrix(c(rnorm(30), time, 2*time+runif(30)), 30, 3, dimnames=list(list(), c("norm","t","v")))
 normdep2 <- predict(normdep, newdata=normdep.df2, prefix='normdep2')
 @
 <<results=tex>>=
@@ -136,29 +171,49 @@ summary(normdep2, q='mean|sd', latex=TRUE)
 @
 
 
-\subsection{$\chi^2$ Feature Selection of Spectral Data}
-todo
+\paragraph{$\chi^2$ Feature Selection of Spectral Data} As used in \cite{colas10finding}: TO DO
 
 %
 % CLUSTER ANALYSIS
 %
 \section{Cluster Analysis}
-\subsection{Repeated Model Based Cluster Analysis with MClust}
+We base our cluster analysis procedure on the model based clustering framework (\texttt{mclust}) from Fraley and
+Raftery \cite{FraleyRaftery2002,MclustSoftwareManual2006}. As the EM model likelihood optimization procedure is
+sensible to its starting value, Fraley and Raftery start EM with a (model based) hierarchical clustering. Yet, it
+may happen that initializing EM by the hierarchical clustering does not lead to the most likely model. To address
+this uncertainty, we start EM from a series of random initialization points (here \texttt{rseed} $\in
+[6013;6023]$) and we study the class of resulting models.
+
 <<>>=
 class(normdep)
 normdep <- SDisc(normdep, settings=normdep.set, prefix='normdep', 
    cFunSettings=list(modelName=c("EII", "VII", "VEI","VVI"), G=3:5, rseed=6013:6023))
+@
+Note: in the following, we show the \texttt{class} mechanism of the main \texttt{SDisc} methods.
+<<>>=
 class(normdep)
 class(SDData(normdep))
 class(SDDataSettings(normdep))
 @
 
-<<eval=false>>=
-normdep <- SDisc(normdep)
-@
+\section{Likelihood-Based Model Selection}
+The larger the number of parameters, the more likely it is that our model may overfit the data which restricts its
+generality and understandability. For model selection, Kass and Raftery \cite{kass95} prefer the Bayesian Information
+Criterion (BIC) to the Akaike Information Criterion (AIC) because it approximates the Bayes Factor.  In our
+protocol, we use the BIC which defines as:
+\begin{equation}
+BIC = -2 \log \mathcal{L}_{MIX} + \log \left( N \times \# params\right),
+\end{equation}
+with $\mathcal{L}_{MIX}$ the Gaussian-mixture model likelihood, $N$ the number of observations and $\# params$ the
+number of parameters of the model.
 
-\subsection{Likelihood-Based Model Selection}
+Yet, we found inappropriate  to select for a model based on a single BIC value because we questioned whether
+models 'less likely' (e.g. $<5\%$) were significantly different or not, whether local or global maxima were
+attained by EM, and if cluster results from different starting values of EM were \emph{reliable} (consistency). 
 
+To address these questions, we repeat the model based cluster analysis by initializing EM from a number of
+starting values. Here, we rank models based on their BIC values, which enables to retrieve a subset of top-ranking
+models among which there may be more simple models with less parameters.
 <<SDiscBictable, results=tex>>=
 summary(bicTable(normdep), latex=TRUE)
 print(bicTable(normdep), modelName='VII', G=4, latex=TRUE)
@@ -167,23 +222,68 @@ print(bicTable(normdep), modelName='VII', G=4, latex=TRUE)
 %
 % POST CLUSTER ANALYSIS
 %
-\section{Comparing, Characterizing, Validating and Testing Reproducibility of Subtypes}
-\subsection{Cross Comparison Between Subtyping Analyses}
+\section{Comparison and Characterization of Subtypes}
+To report the main characteristics of the clusters, we use odd ratios calculated on the group of predictors 
+(see \texttt{SDDataSettings}). Based on Table \ref{tab:logodds}, this ratio is calculated as follows  
+\begin{equation}
+logodds_{kl}
+= \log \frac{A \times D}{B \times C}. 
+\end{equation}
+
+\begin{table}[hp!]
+\caption{\label{tab:logodds}For each sum score $l$, we consider a middle value $\delta_l$ such as the dataset
+$mean$ or $median$. For cells A and B, we use it to count how many observations $i$ in the cluster $S_k$ have a sum
+score above and below its value. For cells C and D, we proceed to a similar count but on the rest of the
+observations  $i\in \{S - S_k\}$. }
+\begin{center}
+\begin{tabular}{c|cc}
+ &  $x_i< \delta_l$ & $x_i \geq \delta_l$ \\\hline
+  $i\in S_k$ & A & B\\
+   $i\in \{S - S_k\}$& C & D\\
+   \end{tabular}
+   \end{center}
+   \end{table}
+
+To compare clusters two by two, we report the joint distribution of the cluster affectations. If the table has many
+empty cells, then the two cluster results are highly related; if the joint distribution over all cells is even,
+then the two cluster results are unrelated (independent). 
+
+We summarize those tables by the rand index that measures the similarity between two data clusterings, the $\chi^2$ statistics, the Cramer's V which, similarly to the Pearson's correlation
+coefficient takes one for completely correlated variables and zero for stochastically independent ones; V is
+defined as follows 
+\begin{equation}
+V = \sqrt{\frac{\chi^2}{N \times m}}
+\end{equation}
+with $V \in [0;1]$ and $N$ the sample size and $m=min(rows,columns)-1$).
 <<SDiscCompare, results=tex>>=
 print(normdep, latex=TRUE)
-print(normdep,  m1=1, m2=bestModel(normdep, modelName='VII', G=4)[1], latex=TRUE)
 @
 
-\subsection{Characterization of the Subtypes}
+<<>>=
+bestAll <- bestModel(normdep)[1]
+bestAll
+bestG4 <- bestModel(normdep, G=4)[1]
+bestG4
+@
+
+<<results=tex>>=
+print(normdep,  m1=bestAll, m2=bestG4, latex=TRUE)
+@
+
+To compare visually the characteristics of the cluster results, we use heatmaps, parallel coordinates and
+dendrograms. With heatmaps we report the mean/median/quantile patterns of the clusters. With parallel coordinates
+we show the mean/median/quantile patterns, bringing forward the information about ordering and grouping of
+predictors. With dendrograms, we report the similarity between the mean/median patterns of each cluster result  or
+group of predictor.  
 <<SDiscCharacterize,results=tex>>=
 plot(normdep, latex=TRUE)
 summary(normdep, q=1, latex=TRUE)
 @
 
-\subsection{Validation of the Subtypes}
+\clearpage
+\section{Validation and Reproducibility of the Subtypes}
 todo with another dataset including a treatment group for instance
 
-\subsection{Reproducibility of Subtypes on New Data}
 todo use of predict.SDisc
 
 \appendix
@@ -195,6 +295,7 @@ sessionInfo()
 dir1 <- dir(recursive=TRUE)
 dir1 <- dir1[grep('pdf', dir1, invert=T)]
 file.remove(dir1[which(!(dir1 %in% dir0))])
+file.remove(c('normdep/IMAGE.RData'))
 file.remove(c('normdep2/figures','normdep2/tables'))
 file.remove(c('normdep2'))
 @

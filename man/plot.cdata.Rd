@@ -13,18 +13,6 @@ the standard deviation might be reported.}
       plot (in \code{"PS", "PNG"}). }
    \item{...}{...}
 }
-\examples{
-## Not run:
-# LOAD DATA SET
-data(wada2008)
-data(wada2008_settings) 
-# PREPARE CDATA
-cdata_set <- set_cdata(data=wada2008, prefix="WADA2008_Sample_Analysis",
-   settings=wada2008_settings)
-# PLOT -> PS
-plot(cdata_set)
-## End(Not run)
-}
 \author{ Fabrice Colas }
 \seealso{\code{\link{get_plot_fun}}, \code{\link{set_cdata}}}
 \keyword{}

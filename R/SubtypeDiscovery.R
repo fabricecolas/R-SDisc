@@ -10,7 +10,7 @@ function(x, device="PS", img=FALSE, html=TRUE){
    cat("\nPlot cresult -> PS")
    plot(x, device=device)
    cat("\nGenerate HTML report -> .html")
-   print(x, html=TRUE, img=img)
+   print(x, html=html, img=img)
 
    return(x)
 }
@@ -78,42 +78,55 @@ function(x,y){
    cor_test     <- cor.test(attr(x,"model")$labelling,attr(y,"model")$labelling,use="pairwise.complete.obs")
    # BIND STATISTICS SUCH AS LOG-ODD RATIO, LAMBDA-SIBS INTO A FINAL TABLE 1RST
    # DIRECTION
-   m <- apply(m,1:2,html_format_numeric,fmt="%d")
-   m[m_num == 0] <- ""
-   for(s in names(attr(x,"stats")))
-      m	<- cbind(m,data.matrix(attr(x,"stats")[[s]][["out"]]))
-   mat_stats <- matrix(0,0,attr(y,"model")$G)
-   for(s in names(attr(y,"stats")))
-      mat_stats <- rbind(mat_stats, t(attr(y,"stats")[[s]][["out"]]))
+   m_html <- apply(m,1:2,html_format_numeric,fmt="%d")
+   m[m_num == 0] <- m_html[m_num == 0] <- ""
+   for(s in names(attr(x,"stats"))){
+      m_html <- cbind(m_html,data.matrix(attr(x,"stats")[[s]][["out"]]))
+      m	<- cbind(m,data.matrix(attr(x,"stats")[[s]][[2]]))
+      }
+   mat_stats <- mat_stats_html <- matrix(0,0,attr(y,"model")$G)
+   for(s in names(attr(y,"stats"))){
+      mat_stats_html <- rbind(mat_stats_html, t(attr(y,"stats")[[s]][["out"]]))
+      mat_stats <- rbind(mat_stats, t(attr(y,"stats")[[s]][[2]]))
+      }
    mat_stats <- cbind(mat_stats, matrix(0,nrow(mat_stats),ncol(m)-attr(y,"model")$G))
-   dimnames(mat_stats)[[2]] <- dimnames(m)[[2]]
+   mat_stats_html <- cbind(mat_stats_html, matrix(0,nrow(mat_stats),ncol(m)-attr(y,"model")$G))
+   dimnames(mat_stats)[[2]] <- dimnames(mat_stats_html)[[2]] <-  dimnames(m)[[2]]
    m <- rbind(m,mat_stats)
+   m_html <- rbind(m_html,mat_stats_html)
    # FINALLY, ORDER THE ROWS AND THE COLUMNS BY (DI)SIMILARIY, HIERARCHICAL
    # CLUSTERING
    ordering <- list(row=hclust(dist(m_num[1:attr(x,"model")$G,1:attr(y,"model")$G]))$order,
                      column=hclust(dist(t(m_num[1:attr(x,"model")$G,1:attr(y,"model")$G])))$order)
    m <- m[c(ordering$row,(attr(x,"model")$G+1):nrow(m)),
       c(ordering$col,(attr(y,"model")$G+1):ncol(m))]
+   m_html <- m_html[c(ordering$row,(attr(x,"model")$G+1):nrow(m)),
+      c(ordering$col,(attr(y,"model")$G+1):ncol(m))]
    # BIND CHI2 STATS
    m <- rbind(m,"")
-   row.names(m)[nrow(m)] <- 'Chi2'
-   m[nrow(m),1:2] <- c(sprintf('%.1e',ind_test$p.value),sprintf('%.1f',ind_test$statistic))
+   m_html <- rbind(m_html,"")
+   row.names(m)[nrow(m)] <- row.names(m_html)[nrow(m_html)] <- 'Chi2'
+   m[nrow(m),1:2] <- m_html[nrow(m_html),1:2] <- c(sprintf('%.1e',ind_test$p.value),sprintf('%.1f',ind_test$statistic))
    # BIND CRAMER'S V ASSOCIATION STAT
    m <- rbind(m,"")
-   row.names(m)[nrow(m)] <- "Cramer's V"
-   m[nrow(m),1] <- html_format_numeric(V,fmt='%.3f') 
+   m_html <-  rbind(m_html,"")
+   row.names(m)[nrow(m)] <- row.names(m_html)[nrow(m_html)] <- "Cramer's V"
+   m_html[nrow(m_html),1] <- html_format_numeric(V,fmt='%.3f') 
+   m[nrow(m),1] <- V
    # T-TEST TO EVALUATE WHETHER THE DIFFERENCES BETWEEN THE MAP CONTINGENCY
    # TABLE AND THE JOINT PROBABILITY DISTRIBUTION OF THE TWO FACTORS IS A
    # RANDOM ERROR OF MEAN = 0
    m <- rbind(m,"")
-   row.names(m)[nrow(m)] <- "t-test (mapping)"
-   m[nrow(m),1] <- map_rand_err_test$p.value
+   m_html <-  rbind(m_html,"")
+   row.names(m)[nrow(m)] <- row.names(m_html)[nrow(m_html)] <- "t-test (mapping)"
+   m[nrow(m),1] <- m_html[nrow(m_html),1] <- map_rand_err_test$p.value
    # TO QUICKEN THE LATER OPENING OF THE MANY CSV FILES,  WE REDUCE THE NUMBER
    # OF ZEROS TO CLEAR MANUALLY. IN WRITE.CSV2 'NA' ARE SUBSTITUTED BY EMPTY
    # STRINGS
-   m[m == "0"] <- ""
+   m[m == "0"] <- m_html[m_html == "0"] <- ""
    m <- as.data.frame(m)
-   return(m)
+   m_html <- as.data.frame(m_html)
+   return(list(html=m_html,full=m))
 }
 
 `fun_mbc_em` <-
@@ -214,8 +227,8 @@ function(z1, z2){
 `generate_cdata_settings` <-
 function(data){
    # DEFINE THE DEFAULT VALUES OF OUR CONF MATRIX
-   conf_col_names <- list("group","in_canalysis","fun_transform","visu_groups","visu_ycoord")
-   default_values <- c("",TRUE,"transform_AVG transform_SIGMA","var_group_1","NULL")
+   conf_col_names <- list("group","in_canalysis","fun_transform","visu_groups","visu_ycoord","heatmap_ycoord")
+   default_values <- c("factor_1",TRUE,"transform_AVG transform_SIGMA","var_group_1","NA","NA")
    # in_canalysis? (TRUE/FALSE) 
    #    Is the variable passed to the clustering algorithm?
    # visu_groups (CHAR VECTOR) 
@@ -244,12 +257,14 @@ function(data){
    s2 <- generate_cdata_settings(df2)
    s2[row.names(s1),] <- s1[,colnames(s2)]
    s2[,"in_canalysis"] <- "FALSE"
-   new_names <- row.names(na.omit(s2[s2[,"visu_ycoord"] == "NULL",]))
+   new_names <- row.names(na.omit(s2[s2[,"visu_ycoord"] == "NA",]))
    s2[new_names,"in_canalysis"] <- "TRUE"
    s2[new_names,"group"] <- new_names
-   s2[new_names,"visu_groups"] <- "Principal components z-transformed"
+   s2[new_names,"visu_groups"] <- "PCA"
    s2[new_names,"visu_ycoord"] <- 10*(1:length(new_names)/length(new_names))
    s2[new_names,"fun_transform"] <- "transform_AVG transform_SIGMA"
+   max_heatmap <- max(as.numeric(s2[,"heatmap_ycoord"]),na.rm=TRUE)
+   s2[new_names,"heatmap_ycoord"] <- as.character((max_heatmap+1):(max_heatmap+length(new_names)))
    x2 <- set_cdata(data=df2, settings=s2, prefix=prefix, data_o=attr(x,'data_o'))
    return(x2)
 }
@@ -328,6 +343,19 @@ function(x){
    best_models  <- apply(best_bics[,c("modelName","G","rseed")],1,paste,collapse=",",sep="")
    return(best_models)
 }
+
+`init_data_sibship_pairs` <-
+function(data, settings, vfamily = "family", vmember = "member"){
+   for(f in unique(data[,vfamily])){
+      sibship <- sort(data[data[,vfamily] == f,vmember])
+      if(!is.na(sibship[1]) && !is.na(sibship[2])){
+         data[data[,vfamily] == f & data[,vmember] == sibship[1],vmember] <- 1
+         data[data[,vfamily] == f & data[,vmember] == sibship[2],vmember] <- 2 
+      }
+   }
+   return(data[data[,vmember] <= 2,])
+}
+
 
 `init_data_cc` <-
 function(data,settings)
@@ -426,11 +454,11 @@ function(x, device = "PS", ...) {
       postscript(file=file_img)
    }
    par(mfrow = c(1,1), new = FALSE, mai=c(2,0.9,0.9,0.9))
-   x_settings <- na.omit(attr(x,"settings")[,c("visu_groups","visu_ycoord")])
+   x_settings <- as.matrix(na.omit(attr(x,"settings")[,c("visu_groups","visu_ycoord")]))
    split_group <- split(row.names(x_settings),x_settings[,"visu_groups"])
    for(i in 1:length(split_group))
       boxplot(as.data.frame(x[,split_group[[i]]]),'las'=2, 
-         main=paste2(" Boxplot",names(split_group)[i]) , cex.axis=1)
+         main=paste2(" Boxplot ",names(split_group)[i]) , cex.axis=1)
    par(mfrow = c(4,5), mai=c(0.6,0.4,0.4,0.4))
    for(var in colnames(x)){
       # prepare tdata text
@@ -487,15 +515,15 @@ function(x, device = "PS", query = NULL, img_size = c(1024,1024),...) {
    return(plot_file)
 }
 
-`html_format_numeric` <- function(x, fmt="%.2f"){
+`html_format_numeric` <- function(x, fmt="%.2f", col_threshold=c(-1,1)){
    x_nbr <- as.numeric(x) 
    if(!is.na(x_nbr)){
       x <- paste2("<div align='right'>" 
-                , gsub("\\.00","",gsub("0\\.",".",sprintf(fmt,x))) 
+                , gsub("\\.00","",gsub("^0\\.",".",sprintf(fmt,x))) 
                 , "</div>")
-      if(x_nbr >= 1)
+      if(x_nbr >= col_threshold[2])
          x <- paste2("<font color='red'>",x,"</font>")
-      if(x_nbr <= -1)
+      if(x_nbr <= col_threshold[1])
          x <- paste2("<font color='blue'>",x,"</font>")
    }
    else
@@ -504,16 +532,19 @@ function(x, device = "PS", query = NULL, img_size = c(1024,1024),...) {
 }
 
 `print.cresult` <- 
-function(x, html = TRUE, img=TRUE, img_size=c(1024,1024),...) {
+function(x, html = TRUE, img=FALSE, img_size=c(1024,1024),...) {
    x_comp <- compare_cresult(x)
    x_out <- print(attr(x,"bicanalysis"))
    x_out[["Best models"]] <- get_best_models(x)
+   x_csv <- x_out 
    if(html){
       for(p_name in names(x_comp)){
-         pxcomp2 <- pxcomp <- as.matrix(x_comp[[p_name]])
-         row.names(pxcomp2) <- gsub("_[-]?0\\.0","",row.names(pxcomp2))
-         colnames(pxcomp2)  <- gsub("_[-]?0\\.0","",colnames(pxcomp2))
-         x_out[[p_name]] <- structure(pxcomp2,csv=pxcomp)
+         pxcomp <- as.matrix(x_comp[[p_name]][["full"]])
+         pxcomp2 <- as.matrix(x_comp[[p_name]][["html"]])
+         row.names(pxcomp) <-row.names(pxcomp2) <- gsub("_[-]?0\\.0","",row.names(pxcomp2))
+         colnames(pxcomp) <- colnames(pxcomp2) <- gsub("_[-]?0\\.0","",colnames(pxcomp2))
+         x_out[[p_name]] <- pxcomp2
+         x_csv[[p_name]] <- pxcomp
       }
       f_out <- paste2(attr(x,"prefix"),"_report")
       HTMLStart(outdir=getwd(), filename=f_out, HTMLframe=TRUE
@@ -524,10 +555,7 @@ function(x, html = TRUE, img=TRUE, img_size=c(1024,1024),...) {
          file_csv <- paste2(attr(x,"prefix"),"_",i,".csv")
          HTML(paste2("<a href=",f_out,"_main.html#",a_name," target=main>",i,"</a>", 
             " (<a href='./",file_csv,"' target=main>CSV file</a>)"), file=paste2(f_out,"_menu.html"))
-         tmp <- x_out[[i]]
-         if(!is.null(attr(x_out[[i]],"csv"))) 
-            tmp <- attr(x_out[[i]],"csv")
-         write.table(tmp, na="", dec=",", sep=";", file=file_csv)
+         write.table(x_csv[[i]], na="", dec=",", sep=";", file=file_csv)
          HTML(x_out[[i]],align="left")
       }
       if(img){
@@ -540,7 +568,7 @@ function(x, html = TRUE, img=TRUE, img_size=c(1024,1024),...) {
       HTMLStop()
    }
    else
-      return(x_out)
+      return(x_csv)
 }
 
 `fun_cmodel` <-
@@ -551,7 +579,8 @@ function(x) {
       cat("\n",names(x)[[i]])
       attr(x[[i]],"model") <- x[[i]](x[[i]],cdata)
       if(!is.na(attr(x[[i]],"model")$loglik)){
-         cdata_l <- cbind(attr(x,"cdata"),class=attr(x[[i]],"model")[["labelling"]])
+         cdata_l <- attr(x,"cdata")[,order(attr(attr(x,"cdata"),"settings")[,"heatmap_ycoord"],na.last=NA)] 
+         cdata_l <- cbind(cdata_l,class=attr(x[[i]],"model")[["labelling"]])
          cat("-> Patterns")
          # COMPUTE PATTERNS
          for(p in names(attr(x,"fun_pattern")))
@@ -564,8 +593,8 @@ function(x) {
          # REORDER THE PATTERNS
          cat("-> Ordering")
          for(p in names(attr(x,"fun_pattern")))
-            attr(x[[i]],"pattern")[[p]] <- attr(x[[i]],"pattern")[[p]][attr(x[[i]],"dendro_cluster")$order
-                                                , rev(sort(colnames(avg_p)))]
+            attr(x[[i]],"pattern")[[p]] <- attr(x[[i]],"pattern")[[p]][attr(x[[i]],"dendro_cluster")$order,]
+#                                                , rev(sort(colnames(avg_p)))]
          attr(x[[i]],"pattern")[["class_count"]] <- table(cdata_l[,"class"])[attr(x[[i]],"dendro_cluster")$order]
          # SELECT DIVERGING COLORS FROM RColorBrewer
          attr(x[[i]],"cluster_colors") <- brewer.pal(nrow(avg_p),"Set1")
@@ -712,7 +741,7 @@ function(cdata=NULL, cfun=fun_mbc_em, cfun_settings=list(modelName=c("EII",
 `set_cdata` <-
 function(data, data_o = NULL, tdata = NULL, settings, init_fun = list(init_data_cc), prefix =""){
    tdata_list <- list()
-   settings <- na.omit(as.data.frame(settings))
+   settings <- settings[row.names(settings)[!is.na(settings[,"group"])],]
    # BACKUP DATA INTO DATA_O 
    if(is.null(data_o) )
       data_o <- data
@@ -747,7 +776,7 @@ function(xlim = c(-3,3)
       max2 <- function(x){if(max(x)>10){return(max(x))}else{return(10)}}
       ylim<- c(min2(as.numeric(T_s[,"visu_ycoord"])),max2(as.numeric(T_s[,"visu_ycoord"])))
       plot(x=0 ,new=TRUE ,ann=FALSE ,pch=18,col="white",axes=FALSE ,xlim=xlim , ylim=ylim)
-      title(main = paste2("(",paste(as.matrix(attr(cmodel, "cfun_settings")),collapse=","),")",title), cex = cex * 0.8)
+      title(main = paste2("(",paste(as.matrix(attr(cmodel, "cfun_settings")),collapse=","),") ",title), cex = cex * 0.8)
       for(x_name in pattern){
          pattern <- attr(cmodel,"pattern")[[x_name]][,row.names(T_s)]
          lwd <- 3
@@ -857,9 +886,9 @@ function(data){
 function(data,class)
 {
    class <- map(class)
-   b                    <- cbind(data[["orig"]],class = class)
-   b                    <- reshape(b[,c("family","member","class")],timevar="member",idvar="family",direction="wide")
-   b                    <- b[,-1]
+   b <- as.data.frame(cbind(data,class = class))
+   b <- reshape(b[,c("family","member","class")],timevar="member",idvar="family",direction="wide")
+   b <- b[,-1]
    # MAKE A DATA STRUCTURE FROM PREVIOUSLY RESHAPED 'B' SPARSE MATRIX 
    # . IN THE 1ST COLUMN THE PROBANT, 
    # . IN THE 2ND ITS SIBLING 
@@ -911,7 +940,7 @@ function(data,class)
    #
    s <- t(s[,1:length(class_set)])
    s_out <- apply(s, 1:2, html_format_numeric, fmt='%.1f')
-   return(list(out=))
+   return(list(out=s_out,s))
 }
 
 `stats_logodds` <-
@@ -948,22 +977,21 @@ function(data,class,fun_midthreshold=median){
 }
 
 `stats_chemoinf_chi2test` <- 
-function(data, class, class_col='Class'){
+function(data, class, class_col='Class',probs=0.95){
    ldata <- cbind(data, class=map(class))
-   ldata <- cbind(ldata, ChemoClass=attr(data,'data_o')[row.names(ldata),class_col])
-   ldata[,"ChemoClass"] <- gsub("_[A-Z]+_[A-Za-z_]+$","",ldata[,"ChemoClass"])
+   ldata <- cbind(ldata, ChemoClass=as.character(attr(data,'data_o')[row.names(ldata),class_col]))
    s_test <- chisq.test(xtabs( ~.,ldata[,c("class","ChemoClass")]), simulate.p.value=TRUE)
    s <- cbind(s_test[["residuals"]]^2, chi2test=NA)
-   s_out <- apply(s, 1:2, html_format_numeric, fmt='%.1f')
    s[1:2,"chi2test"] <- c(sprintf('%.1e',s_test[["p.value"]]), sprintf('%.1f',s_test[["statistic"]]))
+   s_out <- apply(s, 1:2, html_format_numeric, fmt='%.1f', 
+      col_threshold=c(-1,quantile(s_test[["residuals"]]^2,probs=probs)[[1]]))
    return(list(out=s_out,s))
 }
 
 `stats_chemoinf_jointdistrib` <- 
 function(data, class, class_col='Class'){
    ldata <- cbind(data, class=map(class))
-   ldata <- cbind(ldata, ChemoClass=attr(data,'data_o')[row.names(ldata),class_col])
-   ldata[,"ChemoClass"] <- gsub("_[A-Z]+_[A-Za-z_]+$","",ldata[,"ChemoClass"])
+   ldata <- cbind(ldata, ChemoClass=as.character(attr(data,'data_o')[row.names(ldata),class_col]))
    s <- xtabs( ~.,ldata[,c("class","ChemoClass")])
    s_out <- apply(s, 1:2, html_format_numeric, fmt='%d')
    return(list(out=s_out,s))
@@ -1060,7 +1088,7 @@ function(data,tdata){
 `transform_SIGMA` <-
 function(data,tdata){
    vdata        <- data[,attr(tdata,"var")]
-   tfun         <- list(function(x){return(sd(x,na.rm=TRUE))}
+   tfun         <- list(function(x){sd_est <- sd(x,na.rm=TRUE) ; if(sd_est>0) return(sd_est) else return(1)}
                       , function(x){return(do.call('/', x))})
    return(transform_ALL(data=vdata,tfun=tfun,tdata=tdata))
 }
@@ -1105,7 +1133,9 @@ function(data,settings,tdata=NULL){
             break ;
          # IN CASE 'LFUN' AS AN INSIDE PARAMETER, RETRIEVE IT (1) REPLACE ALL
          # ('\") BY SPACES AND THEN (2) SPLIT
-         lfun                   <- strsplit(gsub("[('\")]"," ",lfun),"[ ]+")[[1]]
+         lfun                   <- gsub(" ","",lfun,extended=FALSE)
+         lfun                   <- gsub("\"","'",lfun,extended=FALSE)
+         lfun                   <- strsplit(gsub("')","",gsub("('"," ",lfun,extended=FALSE),extended=FALSE),"[ ]+")[[1]]
          if(length(tdata_idx) == 0)
             tdata_var_lfun      <- set_tdata(testimate=NULL,var=var)
          else
@@ -1123,17 +1153,5 @@ function(data,settings,tdata=NULL){
       }
    }
    return(list(data=data,tdata=tdata))
-}
-
-`transform_sibordering` <-
-function(data){
-   for(f in unique(data$family)){
-      fmembers <- sort(data[data$family == f,"member"])
-      if(!is.na(fmembers[1]) && !is.na(fmembers[2])){
-         data[data$family == f & data$member == fmembers[1],"member"] <- 1
-         data[data$family == f & data$member == fmembers[2],"member"] <- 2 
-      }
-   }
-   return(data[data$member <= 2,])
 }
 

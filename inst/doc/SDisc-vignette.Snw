@@ -50,7 +50,6 @@ and validation by visual and table summaries. In the design of \textsf{R} \texts
 the inference steps, the accessibility of the cluster analysis protocol, the reproducibility of the results, and
 the availability as an open source package of the technique. This vignette is an interactive documentation on \textsf{R}
 SDisc. 
-
 \begin{figure}[hp!] 
    \begin{center} 
       \includegraphics[width=14cm]{figures/scenario.pdf}
@@ -59,23 +58,63 @@ SDisc.
       selection, characterization, comparison of the subtypes and relevance evaluation.}
    \end{center} 
 \end{figure}
-%
-% TABLE OF CONTENTS
-%
+
+%%%%%%%% TABLE OF CONTENTS
 \tableofcontents
 
-\section{\textsf{R} \textsf{SDisc}: Building blocks and Installation}
+%%%%%%%% INSTALLATION
+\section{Installation}
 <<installRSDisc, eval=false>>=
 install.packages('SDisc', dep=TRUE)
 @
-<<loadRSDisc>>=
+<<loadRSDisc, results=hide>>=
 library(SDisc)
 @
 
-%
-% DATA
-%
-\section{Data in \textsf{SDisc}}
+%%%%%%%% IRIS ANALYSIS IN 10 LINES
+\section{Analysing \textsf{Iris} in 10 Lines}
+In 10 lines of \textsf{R} code, we carry a straightforward \textsf{SDisc} analysis. 
+
+<<pre-cleanup-iris, results=hide,echo=false>>=
+if(file.exists('iris/IMAGE.RData')) 
+   file.remove('iris/IMAGE.RData')
+@
+First, we create a settings file describing the dataset with \textsf{SDDataSettings} that we update to remove the class
+\textsf{Species} from the modeling.   
+<<results=tex>>=
+iris.set <- SDDataSettings(iris)
+iris.set['Species',] <- c(NA,'FALSE',NA,NA,NA,NA)
+@
+
+Given those settings, with \textsf{SDData} we make an \textsf{SDisc} dataset container, defining the root directory
+of that analysis by the \textsf{prefix} argument. Next, we verify the transformation with \textsf{print} by
+reporting a random extract of the original and the transformed datasets. With \textsf{plot} we get regular annotated
+boxplots, and histograms. With \textsf{summary}, we get the estimates of transformation statistics. 
+<<results=tex>>=
+iris.dat <- SDData(iris, prefix='iris', settings=iris.set)
+print(iris.dat, rseed=6014, latex=TRUE)
+plot(iris.dat, latex=TRUE)
+summary(iris.dat, latex=TRUE)
+@
+
+\clearpage
+Using that \textsf{SDisc} dataset container, we carry a subtyping analysis with default parameters. 
+<<results=hide>>=
+iris.sd <- SDisc(iris.dat)
+@
+With \textsf{plot}, we summarize graphically the analysis with parallel coordinates, the loadings of ANOVA analyses
+\emph{per} subtype to find the most influencial covariates with respect to each subtype, and two dendrograms -one
+on the samples, one on the covariates. The \textsf{print} method reports the joint distribution of the most likely
+models, along with $\kappa$- and $\chi^2$-statistics. Finally, the \textsf{summary} method gives a numerical
+summary. 
+<<results=tex>>=
+plot(iris.sd, latex=TRUE)
+print(iris.sd, latex=TRUE)
+summary(iris.sd, latex=TRUE)
+@
+
+%%%%%%%%% SDISC DATA CONTAINER (SDATA)
+\section{\textsf{SDisc} Data Container}
 \textsf{R} \textsf{SDisc} implements its own data structure. The reason we implemented this structure is because we
 like to preserve a copy of the original data when transforming  the data by either of feature selection, complete
 cases filering, normalization. Also, this approach enable us to restrict the cluster analysis to only a subset of
@@ -102,9 +141,6 @@ In addition, we also define how predictors are ordered one to each other and whe
 group. While ordering information is used to arrange the graphical summaries (heatmaps, parallel coordinates), grouping
 is used to calculate odd ratios based on the aggregated sum of groups of predictors. Last, an indicator variable
 (\texttt{inCAnalysis}) identifies those predictors to include in the cluster analysis.
-<<SDDataSettings>>=
-class(normdep.df)
-@
 
 To do the data definition step, we use \texttt{SDDataSettings} that generates a sample  settings file to be saved
 \texttt{asCSV}. It can be edited from within \textsf{R} or from Excel. In the case \texttt{SDDataSettings} receives
@@ -113,10 +149,8 @@ of the current \texttt{SDData} container.  When \texttt{latex} is set to \texttt
 returned for use with Sweave reporting mechanism.  
 <<>>=
 normdep.set <- SDDataSettings(normdep.df)
-class(normdep.set)
 normdep.set[,'tFun'] <- c('mean sd','', 'lm(v~t)')
 normdep <- SDData(normdep.df, settings=normdep.set, prefix='normdep')
-class(normdep)
 @
 <<results=tex>>=
 SDDataSettings(normdep, latex=TRUE)
@@ -173,10 +207,11 @@ summary(normdep2, q='mean|sd', latex=TRUE)
 
 \paragraph{$\chi^2$ Feature Selection of Spectral Data} As used in \cite{colas10finding}: TO DO
 
-%
-% CLUSTER ANALYSIS
-%
-\section{Cluster Analysis}
+%%%%%%%% SUBTYPING WITH SDISC
+\section{Subtyping with \textsf{SDisc}}
+
+%%%%%%%%%%% CLUSTER MODELING
+\subsection{Cluster Modeling}
 We base our cluster analysis procedure on the model based clustering framework (\texttt{mclust}) from Fraley and
 Raftery \cite{FraleyRaftery2002,MclustSoftwareManual2006}. As the EM model likelihood optimization procedure is
 sensible to its starting value, Fraley and Raftery start EM with a (model based) hierarchical clustering. Yet, it
@@ -184,21 +219,15 @@ may happen that initializing EM by the hierarchical clustering does not lead to 
 this uncertainty, we start EM from a series of random initialization points (here \texttt{rseed} $\in
 [6013;6023]$) and we study the class of resulting models.
 
-<<>>=
-class(normdep)
-normdep <- SDisc(normdep, settings=normdep.set, prefix='normdep', 
-   cFunSettings=list(modelName=c("EII", "VII", "VEI","VVI"), G=3:5, rseed=6013:6023))
-@
-Note: in the following, we show the \texttt{class} mechanism of the main \texttt{SDisc} methods.
-<<>>=
-class(normdep)
-class(SDData(normdep))
-class(SDDataSettings(normdep))
+<<results=hide>>=
+normdep <- SDisc(normdep, settings=normdep.set, prefix='normdep', cFunSettings=list(modelName=c("EII", "VII",
+   "VEI","VVI"), G=3:5, rseed=6013:6023))
 @
 
-\section{Likelihood-Based Model Selection}
-The larger the number of parameters, the more likely it is that our model may overfit the data which restricts its
-generality and understandability. For model selection, Kass and Raftery \cite{kass95} prefer the Bayesian Information
+%%%%%%%%%%% SELECTING BETWEEN CLUSTER MODELS
+\subsection{Selecting Between Cluster Models}
+The larger the number of parameters, the more likely the model overfits the data, which restricts its generality
+and understandability. For model selection, Kass and Raftery \cite{kass95} prefer the Bayesian Information
 Criterion (BIC) to the Akaike Information Criterion (AIC) because it approximates the Bayes Factor.  In our
 protocol, we use the BIC which defines as:
 \begin{equation}
@@ -219,10 +248,8 @@ summary(bicTable(normdep), latex=TRUE)
 print(bicTable(normdep), modelName='VII', G=4, latex=TRUE)
 @
 
-%
-% POST CLUSTER ANALYSIS
-%
-\section{Comparison and Characterization of Subtypes}
+%%%%%%%%%%% COMPARING SUBTYPES
+\subsection{Comparing and Characterizing Subtypes}
 To report the main characteristics of the clusters, we use odd ratios calculated on the group of predictors 
 (see \texttt{SDDataSettings}). Based on Table \ref{tab:logodds}, this ratio is calculated as follows  
 \begin{equation}
@@ -248,9 +275,9 @@ To compare clusters two by two, we report the joint distribution of the cluster 
 empty cells, then the two cluster results are highly related; if the joint distribution over all cells is even,
 then the two cluster results are unrelated (independent). 
 
-We summarize those tables by the rand index that measures the similarity between two data clusterings, the $\chi^2$ statistics, the Cramer's V which, similarly to the Pearson's correlation
-coefficient takes one for completely correlated variables and zero for stochastically independent ones; V is
-defined as follows 
+We summarize those tables by the rand index that measures the similarity between two data clusterings, the $\chi^2$
+statistics, the Cramer's V which, similarly to the Pearson's correlation coefficient takes one for completely
+correlated variables and zero for stochastically independent ones; V is defined as follows 
 \begin{equation}
 V = \sqrt{\frac{\chi^2}{N \times m}}
 \end{equation}
@@ -270,49 +297,34 @@ bestG4
 print(normdep,  m1=bestAll, m2=bestG4, latex=TRUE)
 @
 
+
 To compare visually the characteristics of the cluster results, we use heatmaps, parallel coordinates and
 dendrograms. With heatmaps we report the mean/median/quantile patterns of the clusters. With parallel coordinates
 we show the mean/median/quantile patterns, bringing forward the information about ordering and grouping of
 predictors. With dendrograms, we report the similarity between the mean/median patterns of each cluster result  or
 group of predictor.  
 <<SDiscCharacterize,results=tex>>=
-plot(normdep, latex=TRUE)
 summary(normdep, q=1, latex=TRUE)
 @
 
-\clearpage
-\section{Validation and Reproducibility of the Subtypes}
-todo with another dataset including a treatment group for instance
-
-todo use of predict.SDisc
-
-\appendix
-\section{Session Info}
+%%%%%%%% TESTING SUBTYPES' VALIDITY AND REPRODUCIBILITY
+\subsection{Testing Validity and Reproducibility of Subtypes}
+to do 
+%%%%%%%%%%%%%%%%%% SESSION INFO
+\appendix \section{Session Info}
 <<>>=
 sessionInfo()
 @
-<<cleanup>>=
+<<cleanup, echo=false, results=hide>>=
 dir1 <- dir(recursive=TRUE)
 dir1 <- dir1[grep('pdf', dir1, invert=T)]
 file.remove(dir1[which(!(dir1 %in% dir0))])
-file.remove(c('normdep/IMAGE.RData'))
+# file.remove(c('normdep/IMAGE.RData'))
 file.remove(c('normdep2/figures','normdep2/tables'))
 file.remove(c('normdep2'))
 @
 
-
-
-%
-% LIST OF FIGURES, LIST OF TABLES
-%
-\listoftables
-\addcontentsline{toc}{section}{List of Tables}
-\listoffigures
-\addcontentsline{toc}{section}{List of Figures}
-
-%
 % REFERENCES
-%
 \addcontentsline{toc}{section}{References}
 \nocite{*}
 \bibliographystyle{plain}

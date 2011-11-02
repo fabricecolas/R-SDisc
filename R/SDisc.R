@@ -3,7 +3,7 @@ function(str, ...){
    cat('\n',paste2(str, ...),'\n')
 }
 
-`SDStability` <-
+`SDStability.default` <-
 function(x, q, rseed=6013, nnoise=10, nrep=10){
    settings <- strsplit(q,',')[[1]]
    df <- print(SDData(x))
@@ -258,8 +258,8 @@ function(x, prefix=NULL, xlim=c(-3,3), ylim=c(0,50), mai=c(0.6,0.3,0.05,0.05)){
       cat2('You must provide an \'SDData\' to \'SDDataSetup\'.')
 }
 
-`bicTable` <- 
-function(x){
+`bicTable.default` <- 
+function(x, ...){
    if(class(x) == 'SDisc')
       return(attr(x, 'bicTable'))
    else
@@ -410,7 +410,7 @@ function(x, q=NULL, est=1, zlim=c(-2,2), latex=FALSE, ...) {
 }
 
 `plot.SDisc` <- 
-function(x, q=NULL, type=c('plotParcoord', 'plotLegend', 'plotImage', 'plotDendroCluster', 'plotDendroVar'),
+function(x, q=NULL, type=c('plotParcoord', 'plotLegend', 'plotPC1', 'plotPC2', 'plotDendroCluster', 'plotDendroVar'),
    latex=FALSE, title=NULL, xlim=c(-3, 3), zlim=c(-2,2), xy=c(-2.2, 0), pattern="mean", cex=0.7,
    colGrad=rev(brewer.pal(9,"RdBu")), rangeFV=NULL, lab=NULL, ...) {
    if(is.numeric(q))
@@ -533,12 +533,11 @@ function(x, data, title=NULL, xlim=c(-3, 3), pattern='mean', cex=0.7, colGrad=re
    }
 } 
 
-`SDisc` <-
-function(data, cfun='modelBasedEM', cFunSettings=list(modelName=c("EII", "VII"), G=3:5, rseed=6013:6015),
-   nTopModels=5, nnodes=1, ...){
+`SDisc.default` <-
+function(x, cfun='modelBasedEM', cFunSettings=list(modelName=c("EII", "VII"), G=3:5, rseed=6013:6015), nTopModels=5, nnodes=1, ...){
    # TRANSFORM THE DATA
    cat2('Prepare the data')
-   data <- SDData(data, ...)
+   data <- SDData(x, ...)
    # CALCULATE THE ENSEMBLE OF MODELS
    mSet <- expand.grid(cFunSettings)
    row.names(mSet) <- apply(as.matrix(mSet[, names(cFunSettings)]), 1, paste, collapse=",")
@@ -573,8 +572,7 @@ function(data, cfun='modelBasedEM', cFunSettings=list(modelName=c("EII", "VII"),
    for(i in 1:length(x))
       bicTable[names(x)[i],"BIC"] <- attr(x[[i]],"model")[["BIC"]]
    bicTable[,"relativeBic"] <- 100*(bicTable[,"BIC"]/max(bicTable[,"BIC"],na.rm=TRUE)-1)
-   attr(x,'bicTable') <- structure(table(bicTable[,1:2]), prefix=SDPrefix(x), data=bicTable,
-      class='bicTable')
+   attr(x,'bicTable') <- structure(table(bicTable[,1:2]), prefix=SDPrefix(x), data=bicTable, class='bicTable')
    save.SDisc(x)
    write.SDisc(x)
    return(x)
@@ -801,8 +799,8 @@ function(x, tFun=NULL, data=NULL, TData=NULL){
    }
 }
 
-`SDData` <-
-function(x, prefix=NULL, dataOrig=NULL, TData=NULL, settings=NULL, initFun=list(SDDataCC), subset=NULL){
+`SDData.default` <-
+function(x, prefix, dataOrig=NULL, TData=NULL, settings=NULL, initFun=list(SDDataCC), subset=NULL, ...){
    if(class(x) == 'SDisc')
       return(attr(x,'SDData'))
    else if(class(x) == 'SDData'){
@@ -1343,4 +1341,105 @@ expDesign <- function(x, gr1=NULL, gr2=NULL, tex=FALSE, exclude=NULL){
    return(invisible(res))
 }
 
+`SDiscReportHead` <- function(LO='Report', packages=list('Sweave','amsmath', 'underscore', 'setspace', 'pdflscape',
+   'multirow', 'glossaries'=c('toc', 'acronym', 'xindy'), 'multicol', inputenc='latin1', babel='english', 'pdfpages',
+   caption=c('small','bf'), 'graphicx','fancyhdr', 'lastpage','longtable','color',xcolor='table',
+   geometry=c('left=1.25cm','top=2cm','right=1.25cm','bottom=2cm'), hyperref=c('colorlinks=true', 'citecolor=blueDoc',
+   'filecolor=blueDoc', 'linkcolor=blueDoc', 'urlcolor=blueDoc'),'lscape','sectsty','colortbl','wrapfig','array'),
+   author=list(name='MyName',email='MyEmail',address='address')){
+   cat('\\documentclass{article}')
+   for(pId in 1:length(packages)){
+      if(names(packages)[pId] != ''){
+         cat(paste2('\n\\usepackage[', paste(packages[[pId]], collapse=',')))
+         cat(paste2(']{',names(packages)[pId],'}'))
+      }
+      else
+         cat(paste2('\n\\usepackage{',packages[[pId]],'}'))
+   }
+
+   ### SDISC STYLE FILE
+   cat('\n\\definecolor{blueDoc}{rgb}{0.2156863,0.4941176,0.7215686}')
+   cat('\n\\definecolor{blueLines}{rgb}{0.8705882,0.9215686,0.9686275}')
+   cat('\n\\definecolor{blue4}{rgb}{0.1294118,0.4000000,0.6745098}')
+   cat('\n\\definecolor{blue3}{rgb}{0.2627451,0.5764706,0.7647059}')
+   cat('\n\\definecolor{blue2}{rgb}{0.5725490,0.7725490,0.8705882}')
+   cat('\n\\definecolor{blue1}{rgb}{0.8196078,0.8980392,0.9764706}')
+   cat('%%\\definecolor{white}{rgb}{0.9686275,0.9686275,0.9686275}')
+   cat('\n\\definecolor{grey}{rgb}{0.8,0.8,0.8}')
+   cat('\n\\definecolor{grey2}{rgb}{0.3215686,0.3215686,0.3215686}')
+   cat('\n\\definecolor{red1}{rgb}{0.9921569,0.8588235,0.7803922}')
+   cat('\n\\definecolor{red2}{rgb}{0.9568627,0.6470588,0.5098039}')
+   cat('\n\\definecolor{red3}{rgb}{0.8392157,0.3764706,0.3019608}')
+   cat('\n\\definecolor{red4}{rgb}{0.69803922,0.09411765,0.16862745}')
+   cat('\n\\fancyhead{}')
+   cat('\n\\fancyfoot{}')
+   cat('\n\\renewcommand{\\rmdefault}{phv}')
+   cat('\n\\renewcommand{\\sectionmark}[1]{\\markright{#1}{}}')
+   cat('\n\\renewcommand{\\headrulewidth}{3pt}')
+   cat('\n\\renewcommand{\\footrulewidth}{3pt}')
+   cat('\n\\newcommand{\\captionfonts}{\\sffamily\\small\\it}')
+   cat('\n\\fancyhead[RO]{\\color{grey2}{\\sffamily\\nouppercase\\leftmark}}')
+   cat('\n\\fancyfoot[CO]{ }')
+   cat('\n\\fancyfoot[RO]{\\color{grey2}{\\sffamily\\thepage/\\pageref{LastPage}}}')
+   if(all(c('name','email','address') %in% names(author))){
+      cat(paste2('\n\\fancyfoot[LO]{\\color{grey2}\\sffamily\\href{mailto:',author$email,'}{',author$name,'},',author$address,'}}'))
+      cat(paste2('\n\\author{\\href{mailto:',author$email,'}{',author$name,'}'))
+   }
+   else{
+      if(!is.null(author))
+         cat(paste2('\n\\fancyfoot[LO]{\\color{grey2}\\sffamily\\href{mailto:',author[[1]]$email,'}{',author[[1]]$name,'}, ',author[[1]]$address,'}'))
+      cat('\n\\author{')
+      for(a in author)
+         cat(paste2('\\href{mailto:',a$email,'}{',a$name,'}\\\\'))
+      cat('}')
+   }
+   cat('\n\\makeglossaries\n \n\\makeatletter \n\\def\\thickhrulefill{\\leavevmode \\leaders \\hrule height
+      1pt\\hfill \\kern \\z@} \n\\def\\maketitle{% \n\\null \n\\thispagestyle{empty}% \n\\vskip 1cm
+      \n\\begin{flushright} \n\\normalfont\\vspace{7cm}\\fontsize{40}{48}\\selectfont\\sffamily
+      \\bfseries\\color{grey2}\\@title\\par \n\\end{flushright} \n\\vfil \n\\begin{flushright} \n\\LARGE \\strut
+      \\sffamily\\bfseries\\color{grey2}\\@author \\par \n\\end{flushright} \n\\par \n\\vfil \n\\vfil \n\\null
+      \n\\cleardoublepage \n} \n\\makeatother \n\\allsectionsfont{\\usefont{OT1}{phv}{bc}{n}\\selectfont}')
+}
+
+`plotPC1` <- function(x, data, ncomp=5, ...){ plotPC(xx=x, xdat=data, xNComp=ncomp, xNPC=1, ...) }
+`plotPC2` <- function(x, data, ncomp=5, ...){ plotPC(xx=x, xdat=data, xNComp=ncomp, xNPC=2, ...) }
+`plotPC3` <- function(x, data, ncomp=5, ...){ plotPC(xx=x, xdat=data, xNComp=ncomp, xNPC=3, ...) }
+`plotPC4` <- function(x, data, ncomp=5, ...){ plotPC(xx=x, xdat=data, xNComp=ncomp, xNPC=4, ...) }
+`plotPC5` <- function(x, data, ncomp=5, ...){ plotPC(xx=x, xdat=data, xNComp=ncomp, xNPC=5, ...) }
+
+`plotPC` <- function(xx, xdat, xNComp, xNPC, ...) {
+   y <- print(SDData(xdat))
+   G <- attr(xx,'model')$label 
+   GSet <- levels(factor(G))
+   PC <- data.frame(matrix(NA, dim(y)[[1]], length(GSet), dimnames=list(row.names(y),GSet))) 
+   varExpl <- data.frame(matrix(NA, xNPC, length(GSet), dimnames=list(list(),GSet)))
+   RelVar <- data.frame(matrix(NA, length(GSet), dim(y)[[2]], dimnames=list(GSet, colnames(y))))
+   names(PC) <- paste("PC", GSet, sep="")
+   for(i in 1:length(GSet)){
+      yG <- y[as.character(G) == GSet[i],]
+      if(ncol(yG)<=nrow(yG)){
+         ySvd <- svd(t(yG), nu=xNComp, nv=xNComp)
+         varExpl[1:xNPC, i] <- (ySvd$d[1:xNPC])^2/sum(ySvd$d^2)
+         PC[as.character(G) == GSet[i],i] <- ySvd$v[,xNPC]
+         tmp <- data.frame(cbind(y, PC=PC[,i]))
+         RelVar[i,] <- sapply(colnames(y), function(ww) anova(lm(as.formula(paste2("PC~", ww)), data=tmp))[1,5])
+      }
+   }
+   ### sum up the relative contribution of each variable to 1
+   RelVar <- as.matrix(t(RelVar / t(apply(RelVar,1,sum, na.rm=TRUE)))) 
+   ### scale down each component to the percentage of variability explained
+   RelVar <- RelVar %*% diag(as.numeric(varExpl[xNPC,])) 
+   ### go for the barplot
+   barplot(RelVar, col=colorRampPalette(brewer.pal(9, 'Pastel1'))(nrow(RelVar)), border=FALSE, axes=FALSE, axisname=FALSE,
+      legend.text=row.names(RelVar), args.legend=list(border=FALSE, box.col='transparent'), main=paste2('PC',xNPC,' ~ Predictor'))
+   axis(2, at=seq(0,max(varExpl[xNPC,], na.rm=T, length.out=4)), labels=round(seq(0,max(varExpl[xNPC,], na.rm=T,
+      length.out=4)),d=2), las=2)
+   axis(1, at=1:ncol(RelVar), labels=apply(cbind(GSet,t(round(100*varExpl[xNPC,],d=1))), 1, function(w)paste2(w[1] , ' (',w[2],'%)')), las=2)
+}
+
+
+SDData <- function(x, ...) UseMethod("SDData")
+SDisc <- function(x, ...) UseMethod("SDisc")
+bicTable <- function(x, ...) UseMethod("bicTable")
+SDStability <- function(x, ...) UseMethod("SDStability")
 

@@ -1,4 +1,4 @@
-R-SDisc (not maintained)
+R-SDisc
 =========
 
 Statistical Analysis Protocol to Identify Homogeneous Subtypes in Clinical Data 
@@ -14,5 +14,6 @@ Data
 * Magnetic Resonance Spectroscopy
 
 =========
-External software
-* [R MClust](http://cran.r-project.org/web/packages/mclust/index.html) by A. Raftery & C. Fraley 
+Remarks:
+* Rely on [R MClust](http://cran.r-project.org/web/packages/mclust/index.html) by A. Raftery & C. Fraley 
+* *R SDisc is no longer maintained*
